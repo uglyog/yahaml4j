@@ -1,38 +1,67 @@
 package au.com.ogsoft.yahaml4j;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
+ * HAML compiler for the JVM
+ * Copyright 2011-12, Ronald Holshausen (https://github.com/uglyog)
+ * Released under the MIT License (http://www.opensource.org/licenses/MIT)
+ *
  * Main haml compiler implemtation
  */
 class Haml {
 
     /*
-    haml.Tokeniser = Tokeniser
 haml.Buffer = Buffer
-haml.JsCodeGenerator = JsCodeGenerator
-haml.ProductionJsCodeGenerator = ProductionJsCodeGenerator
-haml.CoffeeCodeGenerator = CoffeeCodeGenerator
 haml.HamlRuntime = HamlRuntime
 haml.filters = filters
      */
 
+    private HamlGenerator generator;
+    private Tokeniser tokeniser;
+
+    public Haml() {
+
+    }
+
     /**
      * Renders the provided HAML template
+     * @param name Template name
      * @param haml HAML source in string form
+     * @param options Options, can be null
      * @return Rendered template
      */
-    public String render(String haml) {
-        return "";
+    public String render(String name, String haml, Map<String, Object> options) {
+        Map<String, Object> opt = options;
+        if (opt == null) {
+            opt = new HashMap<String, Object>();
+        }
+
+        tokeniser = new Tokeniser(name, haml);
+
+        if (generator == null) {
+            setGenerator(new JavascriptGenerator(opt));
+        }
+
+        return compileHaml(tokeniser, generator, opt);
+    }
+
+    public HamlGenerator getGenerator() {
+        return generator;
+    }
+
+    public void setGenerator(HamlGenerator generator) {
+        this.generator = generator;
     }
 
 
+    private String compileHaml(Tokeniser tokeniser, HamlGenerator generator, Map<String, Object> options) {
 
-    /*
+        generator.initElementStack();
+        generator.initOutput();
 
-  ###
-  _compileHamlToJs: (tokeniser, generator, options = {}) ->
-    generator.elementStack = []
-
-    generator.initOutput()
+        /*
 
     # HAML -> WS* (
     #          TEMPLATELINE
@@ -75,7 +104,13 @@ haml.filters = filters
         tokeniser.getNextToken()
 
     @_closeElements(0, generator.elementStack, tokeniser, generator)
-    generator.closeAndReturnOutput()
+
+         */
+
+        return generator.closeAndReturnOutput();
+    }
+
+    /*
 
   _doctype: (tokeniser, indent, generator) ->
     if tokeniser.token.doctype

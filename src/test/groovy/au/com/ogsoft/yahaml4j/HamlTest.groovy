@@ -14,19 +14,10 @@ public class HamlTest {
 
     @Test
     public void "empty template should return an empty string"() {
-        assert haml.render("") == ""
+        assert haml.render("empty", "", null) == ""
     }
 
     /*
-
-    isIe7or8 = () ->
-  result = false
-  if navigator.appName is 'Microsoft Internet Explorer'
-    ua = navigator.userAgent
-    re = new RegExp("MSIE ([0-9]{1,}[.0-9]{0,})")
-    if re.exec(ua) isnt null
-      result = parseFloat(RegExp.$1) < 9.0
-  result
 
 beforeEach () ->
   haml.cache = {}
