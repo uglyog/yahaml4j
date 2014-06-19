@@ -1,5 +1,11 @@
 package au.com.ogsoft.yahaml4j;
 
+import org.apache.commons.io.IOUtils;
+
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,7 +38,7 @@ haml.filters = filters
      * @param options Options, can be null
      * @return Rendered template
      */
-    public String render(String name, String haml, Map<String, Object> options) {
+    public String compileHaml(String name, String haml, Map<String, Object> options) throws ScriptException, IOException {
         Map<String, Object> opt = options;
         if (opt == null) {
             opt = new HashMap<String, Object>();
@@ -44,7 +50,7 @@ haml.filters = filters
             setGenerator(new JavascriptGenerator(opt));
         }
 
-        return compileHaml(tokeniser, generator, opt);
+        return compile(tokeniser, generator, opt);
     }
 
     public HamlGenerator getGenerator() {
@@ -56,7 +62,7 @@ haml.filters = filters
     }
 
 
-    private String compileHaml(Tokeniser tokeniser, HamlGenerator generator, Map<String, Object> options) {
+    private String compile(Tokeniser tokeniser, HamlGenerator generator, Map<String, Object> options) {
 
         generator.initElementStack();
         generator.initOutput();

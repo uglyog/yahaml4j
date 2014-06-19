@@ -20,6 +20,7 @@ public class JavascriptGenerator extends BaseCodeGenerator {
      * Initialise the output buffer with any variables or code
      */
     public void initOutput() {
+        outputBuffer.appendToOutputBuffer("function (context) {\n");
         if (optionEnabled("tolerateFaults")) {
             outputBuffer.appendToOutputBuffer("  var handleError = haml.HamlRuntime._logError;");
         } else {
@@ -49,7 +50,7 @@ public class JavascriptGenerator extends BaseCodeGenerator {
     @Override
     public String closeAndReturnOutput() {
         outputBuffer.flush();
-        return outputBuffer.output() + "  }\n  return html.join(\"\");\n";
+        return outputBuffer.output() + "  };\n  return html.join(\"\");\n}\n";
     }
 
     /**

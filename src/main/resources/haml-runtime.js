@@ -272,6 +272,7 @@
     }
   };
 
+  haml = {};
   haml.HamlRuntime = HamlRuntime;
 
   if ((typeof module !== "undefined" && module !== null ? module.exports : void 0) != null) {

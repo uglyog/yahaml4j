@@ -1,7 +1,11 @@
 package au.com.ogsoft.yahaml4j
 
+import org.apache.commons.io.IOUtils
 import org.junit.Before
 import org.junit.Test
+
+import javax.script.ScriptEngine
+import javax.script.ScriptEngineManager
 
 public class HamlTest {
 
@@ -14,7 +18,14 @@ public class HamlTest {
 
     @Test
     public void "empty template should return an empty string"() {
-        assert haml.render("empty", "", null) == ""
+        def haml = haml.compileHaml("empty", "", null)
+
+        ScriptEngineManager factory = new ScriptEngineManager()
+        ScriptEngine engine = factory.getEngineByName("JavaScript")
+        engine.eval(IOUtils.toString(getClass().getResourceAsStream("/haml-runtime.js")))
+        def result = engine.eval("var fn = " + haml + "; fn({});")
+
+        assert result == ""
     }
 
     /*
