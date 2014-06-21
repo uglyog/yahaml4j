@@ -19,13 +19,31 @@ public class HamlTest {
     @Test
     public void "empty template should return an empty string"() {
         def haml = haml.compileHaml("empty", "", null)
+        def result = runScript(haml)
+        assert result == ""
+    }
 
+    @Test
+    public void "simple template"() {
+        def haml = haml.compileHaml("simple", "%h1\n  %div\n    %p\n    %span", null)
+        def result = runScript(haml)
+        assert result ==
+            "<h1>\n" +
+            "  <div>\n" +
+            "    <p>\n" +
+            "    </p>\n" +
+            "    <span>\n" +
+            "    </span>\n" +
+            "  </div>\n" +
+            "</h1>\n"
+    }
+
+    private Object runScript(String haml) {
         ScriptEngineManager factory = new ScriptEngineManager()
         ScriptEngine engine = factory.getEngineByName("JavaScript")
         engine.eval(IOUtils.toString(getClass().getResourceAsStream("/haml-runtime.js")))
         def result = engine.eval("var fn = " + haml + "; fn({});")
-
-        assert result == ""
+        result
     }
 
     /*
@@ -55,21 +73,6 @@ beforeEach () ->
       result
   )
 
-describe 'haml', () ->
-
-  describe 'simple template', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="simple">\n' +
-        '%h1\n' +
-        '  %div\n' +
-        '    %p\n' +
-        '    %span</script>')
-
-    for generator in ['javascript', 'productionjavascript']
-      do (generator) ->
-        it 'should render the correct html for ' + generator, () ->
-          html = haml.compileHaml(sourceId: 'simple', generator: generator)()
           expect(html).toEqual(
             '\n' +
             '<h1>\n' +

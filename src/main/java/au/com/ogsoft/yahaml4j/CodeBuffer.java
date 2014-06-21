@@ -5,12 +5,12 @@ import org.apache.commons.lang3.StringUtils;
 /**
  * Provides buffering between the generated code and html contents
  */
-public class Buffer {
+public class CodeBuffer {
 
     private final HamlGenerator generator;
     private final StringBuilder buffer, outputBuffer;
 
-    public Buffer(HamlGenerator generator) {
+    public CodeBuffer(HamlGenerator generator) {
         this.generator = generator;
         outputBuffer = new StringBuilder();
         buffer = new StringBuilder();
@@ -34,15 +34,21 @@ public class Buffer {
         return outputBuffer.toString();
     }
 
+    public void append(String str) {
+        if (generator != null && buffer.length() == 0) {
+            generator.mark();
+        }
+
+        if (StringUtils.isNotEmpty(str)) {
+            buffer.append(str);
+        }
+    }
+
+    public void trimWhitespace() {
+
+    }
+
     /*
-
-  append: (str) ->
-    @generator.mark() if @generator? and @buffer.length == 0
-    @buffer += str if str?.length > 0
-
-  flush: () ->
-    @outputBuffer += @generator.generateFlush(@buffer) if @buffer?.length > 0
-    @buffer = ''
 
   trimWhitespace: () ->
     if @buffer.length > 0

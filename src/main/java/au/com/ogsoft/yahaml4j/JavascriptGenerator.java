@@ -1,37 +1,46 @@
 package au.com.ogsoft.yahaml4j;
 
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.StringUtils;
 
+import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Code generator that generates a Javascript function body
  */
 public class JavascriptGenerator extends BaseCodeGenerator {
 
-    private Buffer outputBuffer;
+    public static final Pattern CODE_BLOCK_END = Pattern.compile("[ \\t]*\\}");
 
-    public JavascriptGenerator(Map<String, Object> options) {
+    private String scriptName;
+
+    public JavascriptGenerator(String scriptName, HamlOptions options) {
         super(options);
-        outputBuffer = new Buffer(this);
+        this.scriptName = scriptName;
     }
 
     /**
      * Initialise the output buffer with any variables or code
      */
     public void initOutput() {
-        outputBuffer.appendToOutputBuffer("function (context) {\n");
-        if (optionEnabled("tolerateFaults")) {
-            outputBuffer.appendToOutputBuffer("  var handleError = haml.HamlRuntime._logError;");
+        getOutputBuffer().appendToOutputBuffer("function " + safeName(scriptName) + " (context) {\n");
+        if (options.tolerateFaults) {
+            getOutputBuffer().appendToOutputBuffer("  var handleError = haml.HamlRuntime._logError;");
         } else {
-            outputBuffer.appendToOutputBuffer("  var handleError = haml.HamlRuntime._raiseError;");
+            getOutputBuffer().appendToOutputBuffer("  var handleError = haml.HamlRuntime._raiseError;");
         }
 
-        outputBuffer.appendToOutputBuffer(
+        getOutputBuffer().appendToOutputBuffer(
             "  var html = [];" +
-            "  var hashFunction = null, hashObject = null, objRef = null, objRefFn = null;" +
-            "  with (context || {}) {"
+                "  var hashFunction = null, hashObject = null, objRef = null, objRefFn = null;" +
+                "  with (context || {}) {\n"
         );
+    }
+
+    private String safeName(String scriptName) {
+        return StringUtils.replaceChars(scriptName, ' ', '_');
     }
 
     /**
@@ -49,8 +58,86 @@ public class JavascriptGenerator extends BaseCodeGenerator {
      */
     @Override
     public String closeAndReturnOutput() {
-        outputBuffer.flush();
-        return outputBuffer.output() + "  };\n  return html.join(\"\");\n}\n";
+        getOutputBuffer().flush();
+        return getOutputBuffer().output() + "  };\n  return html.join(\"\");\n}\n";
+    }
+
+    @Override
+    public void mark() {
+
+    }
+
+    /**
+     * Generate the code to close off a code block
+     */
+    @Override
+    public void closeOffCodeBlock(Tokeniser tokeniser) {
+        if (tokeniser.getToken().type != Token.TokenType.MINUS || tokeniser.matchToken(CODE_BLOCK_END) == null) {
+            outputBuffer.flush();
+            outputBuffer.appendToOutputBuffer(HamlRuntime.indentText(getIndent()) + "}\n");
+        }
+    }
+
+    /**
+     * Generate the code to close off a function parameter
+     */
+    @Override
+    public void closeOffFunctionBlock(Tokeniser tokeniser) {
+        if (tokeniser.getToken().type != Token.TokenType.MINUS || tokeniser.matchToken(CODE_BLOCK_END) == null) {
+            outputBuffer.flush();
+            outputBuffer.appendToOutputBuffer(HamlRuntime.indentText(getIndent()) + "});\n");
+        }
+    }
+
+    /**
+     * Generate the code for dynamic attributes ({} form)
+     */
+    @Override
+    public void generateCodeForDynamicAttributes(String id, List<String> classes, Map<String, String> attributeList, String attributeHash, String objectRef, ParsePoint currentParsePoint) {
+        /*@outputBuffer.flush()
+        if attributeHash.length > 0
+          attributeHash = @replaceReservedWordsInHash(attributeHash)
+          @outputBuffer.appendToOutputBuffer('    hashFunction = function () { return eval("hashObject = ' +
+            attributeHash.replace(/"/g, '\\"').replace(/\n/g, '\\n') + '"); };\n')
+        else
+          @outputBuffer.appendToOutputBuffer('    hashFunction = null;\n')
+        if objectRef.length > 0
+          @outputBuffer.appendToOutputBuffer('    objRefFn = function () { return eval("objRef = ' +
+            objectRef.replace(/"/g, '\\"') + '"); };\n')
+        else
+          @outputBuffer.appendToOutputBuffer('    objRefFn = null;\n');
+
+        @outputBuffer.appendToOutputBuffer('    html.push(haml.HamlRuntime.generateElementAttributes(context, "' +
+          id + '", ["' +
+          classes.join('","') + '"], objRefFn, ' +
+          JSON.stringify(attributeList) + ', hashFunction, ' +
+          currentParsePoint.lineNumber + ', ' + currentParsePoint.characterNumber + ', "' +
+          @escapeCode(currentParsePoint.currentLine) + '", handleError));\n')*/
+    }
+
+    /**
+     * Append the text contents to the buffer, expanding any embedded code
+     */
+    @Override
+    public void appendTextContents(String text, boolean shouldInterpolate, ParsePoint currentParsePoint, ProcessOptions options) {
+        if (shouldInterpolate && text.matches("#\\{[^}]*\\}")) {
+            // @interpolateString(text, currentParsePoint, options)
+        } else{
+            outputBuffer.append(processText(text, options));
+        }
+    }
+
+    /**
+     * process text based on escape and preserve flags
+     */
+    private String processText(String text, ProcessOptions options) {
+        if (options != null && options.escapeHTML) {
+            return null; // HamlRuntime.escapeHTML(text);
+        } else if (options != null && options.perserveWhitespace) {
+            return null; // HamlRuntime.perserveWhitespace(text);
+        } else {
+            return text;
+        }
     }
 
     /**
@@ -106,46 +193,6 @@ public class JavascriptGenerator extends BaseCodeGenerator {
   lineMatchesStartBlock: (line) -> line.match(/\{\s*$/)
 
   ###
-    Generate the code to close off a code block
-  ###
-  closeOffCodeBlock: (tokeniser) ->
-    unless tokeniser.token.minus and tokeniser.matchToken(/\s*\}/g)
-      @outputBuffer.flush()
-      @outputBuffer.appendToOutputBuffer(HamlRuntime.indentText(@indent) + '}\n')
-
-  ###
-    Generate the code to close off a function parameter
-  ###
-  closeOffFunctionBlock: (tokeniser) ->
-    unless tokeniser.token.minus and tokeniser.matchToken(/\s*\}/g)
-      @outputBuffer.flush()
-      @outputBuffer.appendToOutputBuffer(HamlRuntime.indentText(@indent) + '});\n')
-
-  ###
-    Generate the code for dynamic attributes ({} form)
-  ###
-  generateCodeForDynamicAttributes: (id, classes, attributeList, attributeHash, objectRef, currentParsePoint) ->
-    @outputBuffer.flush()
-    if attributeHash.length > 0
-      attributeHash = @replaceReservedWordsInHash(attributeHash)
-      @outputBuffer.appendToOutputBuffer('    hashFunction = function () { return eval("hashObject = ' +
-        attributeHash.replace(/"/g, '\\"').replace(/\n/g, '\\n') + '"); };\n')
-    else
-      @outputBuffer.appendToOutputBuffer('    hashFunction = null;\n')
-    if objectRef.length > 0
-      @outputBuffer.appendToOutputBuffer('    objRefFn = function () { return eval("objRef = ' +
-        objectRef.replace(/"/g, '\\"') + '"); };\n')
-    else
-      @outputBuffer.appendToOutputBuffer('    objRefFn = null;\n');
-
-    @outputBuffer.appendToOutputBuffer('    html.push(haml.HamlRuntime.generateElementAttributes(context, "' +
-      id + '", ["' +
-      classes.join('","') + '"], objRefFn, ' +
-      JSON.stringify(attributeList) + ', hashFunction, ' +
-      currentParsePoint.lineNumber + ', ' + currentParsePoint.characterNumber + ', "' +
-      @escapeCode(currentParsePoint.currentLine) + '", handleError));\n')
-
-  ###
     Clean any reserved words in the given hash
   ###
   replaceReservedWordsInHash: (hash) ->
@@ -162,26 +209,6 @@ public class JavascriptGenerator extends BaseCodeGenerator {
       new Function('context', functionBody)
     catch e
       throw "Incorrect embedded code has resulted in an invalid Haml function - #{e}\nGenerated Function:\n#{functionBody}"
-
-
-  ###
-    Set the current indent level
-  ###
-  setIndent: (indent) -> @indent = indent
-
-  ###
-    Save the current indent level if required
-  ###
-  mark: () ->
-
-  ###
-    Append the text contents to the buffer, expanding any embedded code
-  ###
-  appendTextContents: (text, shouldInterpolate, currentParsePoint, options = {}) ->
-    if shouldInterpolate and text.match(/#{[^}]*}/)
-      @interpolateString(text, currentParsePoint, options)
-    else
-      @outputBuffer.append(@processText(text, options))
 
   ###
     Interpolate any embedded code in the text
@@ -201,17 +228,6 @@ public class JavascriptGenerator extends BaseCodeGenerator {
       index = @embeddedCodeBlockMatcher.lastIndex
       result = @embeddedCodeBlockMatcher.exec(text)
     @outputBuffer.append(@processText(text.substring(index), options)) if index < text.length
-
-  ###
-    process text based on escape and preserve flags
-  ###
-  processText: (text, options) ->
-    if options?.escapeHTML
-      haml.HamlRuntime.escapeHTML(text)
-    else if options?.perserveWhitespace
-      haml.HamlRuntime.perserveWhitespace(text)
-    else
-      text
 
      */
 

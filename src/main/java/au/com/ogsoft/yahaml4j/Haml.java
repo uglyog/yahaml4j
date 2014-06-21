@@ -1,12 +1,14 @@
 package au.com.ogsoft.yahaml4j;
 
-import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -18,8 +20,10 @@ import java.util.Map;
  */
 class Haml {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(Haml.class);
+
     /*
-haml.Buffer = Buffer
+haml.CodeBuffer = CodeBuffer
 haml.HamlRuntime = HamlRuntime
 haml.filters = filters
      */
@@ -38,16 +42,12 @@ haml.filters = filters
      * @param options Options, can be null
      * @return Rendered template
      */
-    public String compileHaml(String name, String haml, Map<String, Object> options) throws ScriptException, IOException {
-        Map<String, Object> opt = options;
-        if (opt == null) {
-            opt = new HashMap<String, Object>();
-        }
-
+    public String compileHaml(String name, String haml, HamlOptions options) throws ScriptException, IOException {
+        HamlOptions opt = options == null ? new HamlOptions() : options;
         tokeniser = new Tokeniser(name, haml);
 
         if (generator == null) {
-            setGenerator(new JavascriptGenerator(opt));
+            setGenerator(new JavascriptGenerator(name, opt));
         }
 
         return compile(tokeniser, generator, opt);
@@ -61,31 +61,33 @@ haml.filters = filters
         this.generator = generator;
     }
 
-
-    private String compile(Tokeniser tokeniser, HamlGenerator generator, Map<String, Object> options) {
+    private String compile(Tokeniser tokeniser, HamlGenerator generator, HamlOptions options) {
 
         generator.initElementStack();
         generator.initOutput();
 
-        /*
+        //  HAML -> WS* (
+        //            TEMPLATELINE
+        //            | DOCTYPE
+        //            | IGNOREDLINE
+        //            | EMBEDDEDCODE
+        //            | CODE
+        //            | COMMENTLINE
+        //          )* EOF
 
-    # HAML -> WS* (
-    #          TEMPLATELINE
-    #          | DOCTYPE
-    #          | IGNOREDLINE
-    #          | EMBEDDEDJS
-    #          | JSCODE
-    #          | COMMENTLINE
-    #         )* EOF
-    tokeniser.getNextToken()
-    while !tokeniser.token.eof
-      if !tokeniser.token.eol
-        try
-          indent = @_whitespace(tokeniser)
-          generator.setIndent(indent)
-          if tokeniser.token.eol
-            generator.outputBuffer.append(HamlRuntime.indentText(indent) + tokeniser.token.matched)
-            tokeniser.getNextToken()
+        tokeniser.getNextToken();
+        while (tokeniser.getToken().type != Token.TokenType.EOF) {
+            if (tokeniser.getToken().type != Token.TokenType.EOL) {
+                Integer indent = null;
+                try {
+                    indent = _whitespace(tokeniser);
+                    generator.setIndent(indent);
+
+                    if (tokeniser.getToken().type == Token.TokenType.EOL) {
+                        generator.getOutputBuffer().append(HamlRuntime.indentText(indent) + tokeniser.getToken().getMatched());
+                        tokeniser.getNextToken();
+                    }
+        /*
           else if tokeniser.token.doctype
             @_doctype(tokeniser, indent, generator)
           else if tokeniser.token.exclamation
@@ -100,20 +102,256 @@ haml.filters = filters
           else if tokeniser.token.amp
             @_escapedLine(tokeniser, indent, generator.elementStack, generator)
           else if tokeniser.token.filter
-            @_filter(tokeniser, indent, generator, options)
-          else
-            @_templateLine(tokeniser, generator.elementStack, indent, generator, options)
-        catch e
-          @_handleError(options, skipTo: true, tokeniser, e)
-      else
-        generator.outputBuffer.append(tokeniser.token.matched)
-        tokeniser.getNextToken()
+            @_filter(tokeniser, indent, generator, options) */
+                    else {
+                        _templateLine(tokeniser, generator.getElementStack(), indent, generator, options);
+                    }
+                } catch (Exception e) {
+                    ErrorOptions errorOptions = new ErrorOptions();
+                    errorOptions.skipTo = indent;
+                    _handleError(options, errorOptions, tokeniser, e);
+                }
 
-    @_closeElements(0, generator.elementStack, tokeniser, generator)
+            } else {
+                generator.getOutputBuffer().append(tokeniser.getToken().getMatched());
+                tokeniser.getNextToken();
+            }
+        }
 
-         */
+        _closeElements(0, generator.getElementStack(), tokeniser, generator);
 
         return generator.closeAndReturnOutput();
+    }
+
+    private void _handleError(HamlOptions options, ErrorOptions errorOptions, Tokeniser tokeniser, Exception error) {
+        if (options != null && options.tolerateFaults) {
+            LOGGER.error(error.getLocalizedMessage(), error);
+            if (errorOptions != null && errorOptions.skipTo != null) {
+                _skipToNextLineWithIndent(tokeniser, errorOptions.skipTo);
+            }
+        } else {
+            if (error instanceof RuntimeException) {
+                throw (RuntimeException) error;
+            } else {
+                throw new RuntimeException(error);
+            }
+        }
+    }
+
+    private void _skipToNextLineWithIndent(Tokeniser tokeniser, int indent) {
+        tokeniser.skipToEOLorEOF();
+        tokeniser.getNextToken();
+        int lineIndent = _whitespace(tokeniser);
+        while (lineIndent > indent) {
+            tokeniser.skipToEOLorEOF();
+            tokeniser.getNextToken();
+            lineIndent = _whitespace(tokeniser);
+        }
+        tokeniser.pushBackToken();
+    }
+
+    /**
+     * TEMPLATELINE -> ([ELEMENT][IDSELECTOR][CLASSSELECTORS][ATTRIBUTES] [SLASH|CONTENTS])|(!CONTENTS) (EOL|EOF)
+     */
+    private void _templateLine(Tokeniser tokeniser, List<Element> elementStack, int indent, HamlGenerator generator, HamlOptions options) {
+
+        if (tokeniser.getToken().type != Token.TokenType.EOL) {
+            _closeElements(indent, elementStack, tokeniser, generator);
+        }
+
+        String identifier = _element(tokeniser);
+        String id = null; // @_idSelector(tokeniser)
+        List<String> classes = Collections.emptyList(); // @_classSelector(tokeniser)
+        String objectRef = null; // @_objectReference(tokeniser)
+        Map<String, String> attrList = Collections.emptyMap(); // @_attributeList(tokeniser, options)
+
+        ParsePoint currentParsePoint = tokeniser.currentParsePoint();
+        String attributesHash = null; // @_attributeHash(tokeniser)
+
+        TagOptions tagOptions = new TagOptions();
+        tagOptions.selfClosingTag = false;
+        tagOptions.innerWhitespace = true;
+        tagOptions.outerWhitespace = true;
+        boolean lineHasElement = _lineHasElement(identifier, id, classes);
+
+        /*if tokeniser.token.slash
+          tagOptions.selfClosingTag = true
+          tokeniser.getNextToken()
+        if tokeniser.token.gt and lineHasElement
+          tagOptions.outerWhitespace = false
+          tokeniser.getNextToken()
+        if tokeniser.token.lt and lineHasElement
+          tagOptions.innerWhitespace = false
+          tokeniser.getNextToken()*/
+
+        if (lineHasElement) {
+            if (!tagOptions.selfClosingTag) {
+                // tagOptions.selfClosingTag = haml._isSelfClosingTag(identifier) and !haml._tagHasContents(indent, tokeniser)
+            }
+            _openElement(currentParsePoint, indent, identifier, id, classes, objectRef, attrList, attributesHash, elementStack,
+                tagOptions, generator);
+        }
+
+        boolean hasContents = false;
+        if (tokeniser.getToken().type == Token.TokenType.WS) {
+            tokeniser.getNextToken();
+        }
+
+        /*if tokeniser.token.equal or tokeniser.token.escapeHtml or tokeniser.token.unescapeHtml
+          @_embeddedJs(tokeniser, indent + 1, null, tagOptions, generator)
+          hasContents = true
+        else*/
+          String contents = "";
+          boolean shouldInterpolate = false;
+          /*if tokeniser.token.exclamation
+            tokeniser.getNextToken()
+            contents = tokeniser.skipToEOLorEOF()
+          else*/
+            contents = tokeniser.skipToEOLorEOF();
+            /*contents = contents.substring(1) if contents.match(/^\\/)
+            shouldInterpolate = true*/
+
+          hasContents = StringUtils.isNotEmpty(contents);
+          String indentText = "";
+          if (hasContents) {
+              if (tagOptions.innerWhitespace && lineHasElement || (!lineHasElement && _parentInnerWhitespace(elementStack, indent))) {
+                  indentText = HamlRuntime.indentText(identifier.length() > 0 ? indent + 1 : indent);
+              } else {
+                  contents = StringUtils.trim(contents);
+              }
+              generator.appendTextContents(indentText + contents, shouldInterpolate, currentParsePoint, null);
+              generator.getOutputBuffer().append(_newline(tokeniser));
+          }
+
+          _eolOrEof(tokeniser);
+
+        /*if tagOptions.selfClosingTag and hasContents
+          @_handleError(options, null, tokeniser, haml.HamlRuntime.templateError(currentParsePoint.lineNumber, currentParsePoint.characterNumber,
+                  currentParsePoint.currentLine, "A self-closing tag can not have any contents"))
+             */
+
+    }
+
+    private void _eolOrEof(Tokeniser tokeniser) {
+        if (tokeniser.getToken().type == Token.TokenType.EOL || tokeniser.getToken().type == Token.TokenType.CONTINUELINE) {
+            tokeniser.getNextToken();
+        } else if (tokeniser.getToken().type != Token.TokenType.EOF) {
+            throw new RuntimeException(tokeniser.parseError("Expected EOL or EOF"));
+        }
+    }
+
+    private String _newline(Tokeniser tokeniser) {
+        if (tokeniser.getToken().type == Token.TokenType.EOL) {
+            return tokeniser.getToken().getMatched();
+        } else if (tokeniser.getToken().type == Token.TokenType.CONTINUELINE) {
+            return tokeniser.getToken().getMatched().substring(1);
+        } else {
+            return "\n";
+        }
+    }
+
+    private void _openElement(ParsePoint currentParsePoint, int indent, String identifier, String id,
+                              List<String> classes, String objectRef, Map<String, String> attributeList,
+                              String attributeHash, List<Element> elementStack, TagOptions tagOptions, HamlGenerator generator) {
+        String element = identifier;
+        if (StringUtils.isEmpty(element)) {
+            element = "div";
+        }
+
+        boolean parentInnerWhitespace = _parentInnerWhitespace(elementStack, indent);
+        boolean tagOuterWhitespace = tagOptions == null || tagOptions.outerWhitespace;
+        if (!tagOuterWhitespace) {
+            generator.getOutputBuffer().trimWhitespace();
+        }
+        if (indent > 0 && parentInnerWhitespace && tagOuterWhitespace) {
+            generator.getOutputBuffer().append(HamlRuntime.indentText(indent));
+        }
+        generator.getOutputBuffer().append("<" + element);
+        if (StringUtils.isNotEmpty(attributeHash) || StringUtils.isNotEmpty(objectRef)) {
+            generator.generateCodeForDynamicAttributes(id, classes, attributeList, attributeHash, objectRef, currentParsePoint);
+        } else {
+            generator.getOutputBuffer().append(HamlRuntime.generateElementAttributes(null, id, classes, null, attributeList, null,
+                currentParsePoint.lineNumber, currentParsePoint.characterNumber, currentParsePoint.currentLine));
+        }
+        if (tagOptions.selfClosingTag) {
+            generator.getOutputBuffer().append("/>");
+            if (tagOptions.outerWhitespace) {
+                generator.getOutputBuffer().append("\n");
+            }
+        } else {
+            generator.getOutputBuffer().append(">");
+            Element el = new Element();
+            el.tag = element;
+            el.tagOptions = tagOptions;
+            elementStack.set(indent, el);
+            if (tagOptions.innerWhitespace) {
+                generator.getOutputBuffer().append("\n");
+            }
+        }
+    }
+
+    private boolean _lineHasElement(String identifier, String id, List<String> classes) {
+        return StringUtils.isNoneEmpty(identifier) || StringUtils.isNoneEmpty(id) || !classes.isEmpty();
+    }
+
+    private String _element(Tokeniser tokeniser) {
+        String identifier = "";
+        if (tokeniser.getToken().type == Token.TokenType.ELEMENT) {
+            identifier = tokeniser.getToken().getTokenString();
+            tokeniser.getNextToken();
+        }
+        return identifier;
+    }
+
+    private void _closeElements(int indent, List<Element> elementStack, Tokeniser tokeniser, HamlGenerator generator) {
+        int i = elementStack.size() - 1;
+        while (i >= indent) {
+            _closeElement(i--, elementStack, tokeniser, generator);
+        }
+    }
+
+    private void _closeElement(int indent, List<Element> elementStack, Tokeniser tokeniser, HamlGenerator generator) {
+        if (elementStack.size() > indent && elementStack.get(indent) != null) {
+            Element element = elementStack.get(indent);
+            generator.setIndent(indent);
+            if (element.htmlComment) {
+                generator.getOutputBuffer().append(HamlRuntime.indentText(indent) + "-->" + element.eol);
+            } else if (element.htmlConditionalComment) {
+                generator.getOutputBuffer().append(HamlRuntime.indentText(indent) + "<![endif]-->" + element.eol);
+            } else if (element.block) {
+                generator.closeOffCodeBlock(tokeniser);
+            } else if (element.fnBlock) {
+                generator.closeOffFunctionBlock(tokeniser);
+            } else {
+                boolean innerWhitespace = element.tagOptions == null || element.tagOptions.innerWhitespace;
+                if (innerWhitespace) {
+                    generator.getOutputBuffer().append(HamlRuntime.indentText(indent));
+                } else {
+                    generator.getOutputBuffer().trimWhitespace();
+                }
+                generator.getOutputBuffer().append("</" + element.tag + ">");
+                boolean outerWhitespace = element.tagOptions == null || element.tagOptions.outerWhitespace;
+                if (_parentInnerWhitespace(elementStack, indent) && outerWhitespace) {
+                    generator.getOutputBuffer().append("\n");
+                }
+            }
+            elementStack.set(indent, null);
+            generator.mark();
+        }
+    }
+
+    private boolean _parentInnerWhitespace(List<Element> elementStack, int indent) {
+        return indent == 0 || (elementStack.get(indent - 1) == null || elementStack.get(indent - 1).tagOptions == null
+            || elementStack.get(indent - 1).tagOptions.innerWhitespace);
+    }
+
+    private int _whitespace(Tokeniser tokeniser) {
+        int indent = 0;
+        if (tokeniser.getToken().type == Token.TokenType.WS) {
+            indent = tokeniser.calculateIndent(tokeniser.getToken().getTokenString());
+            tokeniser.getNextToken();
+        }
+        return indent;
     }
 
     /*
@@ -240,74 +478,6 @@ haml.filters = filters
       else if generator.lineMatchesStartBlock(line)
         elementStack[indent] = block: true
 
-  # TEMPLATELINE -> ([ELEMENT][IDSELECTOR][CLASSSELECTORS][ATTRIBUTES] [SLASH|CONTENTS])|(!CONTENTS) (EOL|EOF)
-  _templateLine: (tokeniser, elementStack, indent, generator, options) ->
-    @_closeElements(indent, elementStack, tokeniser, generator) unless tokeniser.token.eol
-
-    identifier = @_element(tokeniser)
-    id = @_idSelector(tokeniser)
-    classes = @_classSelector(tokeniser)
-    objectRef = @_objectReference(tokeniser)
-    attrList = @_attributeList(tokeniser, options)
-
-    currentParsePoint = tokeniser.currentParsePoint()
-    attributesHash = @_attributeHash(tokeniser)
-
-    tagOptions =
-      selfClosingTag: false
-      innerWhitespace: true
-      outerWhitespace: true
-    lineHasElement = @_lineHasElement(identifier, id, classes)
-
-    if tokeniser.token.slash
-      tagOptions.selfClosingTag = true
-      tokeniser.getNextToken()
-    if tokeniser.token.gt and lineHasElement
-      tagOptions.outerWhitespace = false
-      tokeniser.getNextToken()
-    if tokeniser.token.lt and lineHasElement
-      tagOptions.innerWhitespace = false
-      tokeniser.getNextToken()
-
-    if lineHasElement
-      if !tagOptions.selfClosingTag
-        tagOptions.selfClosingTag = haml._isSelfClosingTag(identifier) and !haml._tagHasContents(indent, tokeniser)
-      @_openElement(currentParsePoint, indent, identifier, id, classes, objectRef, attrList, attributesHash, elementStack,
-        tagOptions, generator)
-
-    hasContents = false
-    tokeniser.getNextToken() if tokeniser.token.ws
-
-    if tokeniser.token.equal or tokeniser.token.escapeHtml or tokeniser.token.unescapeHtml
-      @_embeddedJs(tokeniser, indent + 1, null, tagOptions, generator)
-      hasContents = true
-    else
-      contents = ''
-      shouldInterpolate = false
-      if tokeniser.token.exclamation
-        tokeniser.getNextToken()
-        contents = tokeniser.skipToEOLorEOF()
-      else
-        contents = tokeniser.skipToEOLorEOF()
-        contents = contents.substring(1) if contents.match(/^\\/)
-        shouldInterpolate = true
-
-      hasContents = contents.length > 0
-      if hasContents
-        if tagOptions.innerWhitespace and lineHasElement or (!lineHasElement and haml._parentInnerWhitespace(elementStack, indent))
-          indentText = HamlRuntime.indentText(if identifier.length > 0 then indent + 1 else indent)
-        else
-          indentText = ''
-          contents = (_.str || _).trim(contents)
-        generator.appendTextContents(indentText + contents, shouldInterpolate, currentParsePoint)
-        generator.outputBuffer.append(@_newline(tokeniser))
-
-      @_eolOrEof(tokeniser)
-
-    if tagOptions.selfClosingTag and hasContents
-      @_handleError(options, null, tokeniser, haml.HamlRuntime.templateError(currentParsePoint.lineNumber, currentParsePoint.characterNumber,
-              currentParsePoint.currentLine, "A self-closing tag can not have any contents"))
-
   _attributeHash: (tokeniser) ->
     attr = ''
     if tokeniser.token.attributeHash
@@ -361,57 +531,6 @@ haml.filters = filters
 
     attr
 
-  _closeElement: (indent, elementStack, tokeniser, generator) ->
-    if elementStack[indent]
-      generator.setIndent(indent)
-      if elementStack[indent].htmlComment
-        generator.outputBuffer.append(HamlRuntime.indentText(indent) + '-->' + elementStack[indent].eol)
-      else if elementStack[indent].htmlConditionalComment
-        generator.outputBuffer.append(HamlRuntime.indentText(indent) + '<![endif]-->' + elementStack[indent].eol)
-      else if elementStack[indent].block
-        generator.closeOffCodeBlock(tokeniser)
-      else if elementStack[indent].fnBlock
-        generator.closeOffFunctionBlock(tokeniser)
-      else
-        innerWhitespace = !elementStack[indent].tagOptions or elementStack[indent].tagOptions.innerWhitespace
-        if innerWhitespace
-          generator.outputBuffer.append(HamlRuntime.indentText(indent))
-        else
-          generator.outputBuffer.trimWhitespace()
-        generator.outputBuffer.append('</' + elementStack[indent].tag + '>')
-        outerWhitespace = !elementStack[indent].tagOptions or elementStack[indent].tagOptions.outerWhitespace
-        generator.outputBuffer.append('\n') if haml._parentInnerWhitespace(elementStack, indent) and outerWhitespace
-      elementStack[indent] = null
-      generator.mark()
-
-  _closeElements: (indent, elementStack, tokeniser, generator) ->
-    i = elementStack.length - 1
-    while i >= indent
-      @_closeElement(i--, elementStack, tokeniser, generator)
-
-  _openElement: (currentParsePoint, indent, identifier, id, classes, objectRef, attributeList, attributeHash, elementStack, tagOptions, generator) ->
-    element = if identifier.length == 0 then "div" else identifier
-
-    parentInnerWhitespace = @_parentInnerWhitespace(elementStack, indent)
-    tagOuterWhitespace = !tagOptions or tagOptions.outerWhitespace
-    generator.outputBuffer.trimWhitespace() unless tagOuterWhitespace
-    generator.outputBuffer.append(HamlRuntime.indentText(indent)) if indent > 0 and parentInnerWhitespace and tagOuterWhitespace
-    generator.outputBuffer.append('<' + element)
-    if attributeHash.length > 0 or objectRef.length > 0
-      generator.generateCodeForDynamicAttributes(id, classes, attributeList, attributeHash, objectRef, currentParsePoint)
-    else
-      generator.outputBuffer.append(HamlRuntime.generateElementAttributes(null, id, classes, null, attributeList, null,
-        currentParsePoint.lineNumber, currentParsePoint.characterNumber, currentParsePoint.currentLine))
-    if tagOptions.selfClosingTag
-      generator.outputBuffer.append("/>")
-      generator.outputBuffer.append("\n") if tagOptions.outerWhitespace
-    else
-      generator.outputBuffer.append(">")
-      elementStack[indent] =
-        tag: element
-        tagOptions: tagOptions
-      generator.outputBuffer.append("\n") if tagOptions.innerWhitespace
-
   _isSelfClosingTag: (tag) ->
     tag in ['meta', 'img', 'link', 'script', 'br', 'hr']
 
@@ -422,37 +541,11 @@ haml.filters = filters
       nextToken = tokeniser.lookAhead(1)
       nextToken.ws and nextToken.tokenString.length / 2 > indent
 
-  _parentInnerWhitespace: (elementStack, indent) ->
-    indent == 0 or (!elementStack[indent - 1] or !elementStack[indent - 1].tagOptions or elementStack[indent - 1].tagOptions.innerWhitespace)
-
-  _lineHasElement: (identifier, id, classes) ->
-    identifier.length > 0 or id.length > 0 or classes.length > 0
-
   hasValue: (value) ->
     value? && value isnt false
 
   attrValue: (attr, value) ->
     if attr in ['selected', 'checked', 'disabled'] then attr else value
-
-  _whitespace: (tokeniser) ->
-    indent = 0
-    if tokeniser.token.ws
-      indent = tokeniser.calculateIndent(tokeniser.token.tokenString)
-      tokeniser.getNextToken()
-    indent
-
-  _element: (tokeniser) ->
-    identifier = ''
-    if tokeniser.token.element
-      identifier = tokeniser.token.tokenString
-      tokeniser.getNextToken()
-    identifier
-
-  _eolOrEof: (tokeniser) ->
-    if tokeniser.token.eol or tokeniser.token.continueLine
-      tokeniser.getNextToken()
-    else if !tokeniser.token.eof
-      throw tokeniser.parseError("Expected EOL or EOF")
 
   # IDSELECTOR = # ID
   _idSelector: (tokeniser) ->
@@ -471,31 +564,6 @@ haml.filters = filters
       tokeniser.getNextToken()
 
     classes
-
-  _newline: (tokeniser) ->
-    if tokeniser.token.eol
-      tokeniser.token.matched
-    else if tokeniser.token.continueLine
-      tokeniser.token.matched.substring(1)
-    else
-      "\n"
-
-  _handleError: (options, action, tokeniser, error) ->
-    if options?.tolerateFaults
-      console.log(error)
-      @_skipToNextLineWithIndent(tokeniser, action.skipTo) if action?.skipTo
-    else
-      throw error
-
-  _skipToNextLineWithIndent: (tokeniser, indent) ->
-    tokeniser.skipToEOLorEOF()
-    tokeniser.getNextToken()
-    lineIndent = @_whitespace(tokeniser)
-    while lineIndent > indent
-      tokeniser.skipToEOLorEOF()
-      tokeniser.getNextToken()
-      lineIndent = @_whitespace(tokeniser)
-    tokeniser.pushBackToken()
 
      */
 
