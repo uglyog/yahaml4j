@@ -100,6 +100,9 @@ public class JavascriptGenerator extends BaseCodeGenerator {
             String hashStr = "";
             for (Map.Entry<String, String> entry : attributeHash.entrySet()) {
                 String key = entry.getKey();
+                if (!hashStr.isEmpty()) {
+                    hashStr += ", ";
+                }
                 hashStr += "\\\"" + key + "\\\": " + entry.getValue().replaceAll("[\"]", "\\\\\"").replaceAll("\n", "\\n");
             }
             outputBuffer.appendToOutputBuffer("    hashFunction = function () { return eval(\"hashObject = {" +
@@ -130,6 +133,36 @@ public class JavascriptGenerator extends BaseCodeGenerator {
             // @interpolateString(text, currentParsePoint, options)
         } else{
             outputBuffer.append(processText(text, options));
+        }
+    }
+
+    @Override
+    public String scanEmbeddedCode(Tokeniser tokeniser) {
+        StringBuilder result = new StringBuilder();
+        SourceBuffer buffer = tokeniser.getBuffer();
+        boolean done = false;
+        int bcount = 0;
+        while (!buffer.empty() && !done) {
+            char ch = buffer.peek();
+            if ((ch == ',' || ch == '}') && bcount == 0) {
+                done = true;
+            } else {
+                if (ch == '[') {
+                    bcount++;
+                } else if (ch == ']') {
+                    bcount--;
+                    if (bcount < 0) {
+                        bcount = 0;
+                    }
+                }
+                result.append(buffer.get());
+            }
+        }
+
+        if (buffer.empty()) {
+            return null;
+        } else {
+            return result.toString();
         }
     }
 

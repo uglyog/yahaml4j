@@ -324,6 +324,10 @@ public class Tokeniser {
         }
     }
 
+    public SourceBuffer getBuffer() {
+        return buffer;
+    }
+
     /*
 
     ###

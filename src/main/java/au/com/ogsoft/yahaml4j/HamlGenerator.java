@@ -35,4 +35,9 @@ public interface HamlGenerator {
                                           Map<String, String> attributeHash, String objectRef, ParsePoint currentParsePoint);
 
     void appendTextContents(String text, boolean shouldInterpolate, ParsePoint currentParsePoint, ProcessOptions options);
+
+    /**
+     * Scan the token stream for a valid block of code
+     */
+    String scanEmbeddedCode(Tokeniser tokeniser);
 }

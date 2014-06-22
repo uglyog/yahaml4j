@@ -7,6 +7,8 @@ import org.junit.Test
 import javax.script.ScriptEngine
 import javax.script.ScriptEngineManager
 
+import static org.hamcrest.CoreMatchers.containsString
+import static org.junit.Assert.fail
 import static org.hamcrest.MatcherAssert.assertThat
 import static org.hamcrest.CoreMatchers.is
 
@@ -65,80 +67,74 @@ public class HamlTest {
     public void "template with {} attributes"() {
         def haml = haml.compileHaml("attributes",
             "%h1\n" +
-            "  %div{id: \"test\"}\n" /*+
+            "  %div{id: \"test\"}\n" +
             "    %p{id: 'test2', " +
             "        class: \"blah\", name: null, test: false, checked: false, selected: true} This is some text\n" +
             "      This is some text\n" +
-            "    This is some div text\n" +
-            "    %label(for = \"a\"){for: [\"b\", \"c\"]}/\n" +
-            "    %div{id: ['test', 1], class: [model.name, \"class2\"], for: \"something\"}\n"*/, null)
+            "    This is some div text\n" /*+
+            "    %label(for = \"a\"){for: [\"b\", \"c\"]}/\n"*/ +
+            "    %div{id: ['test', 1], class: [model.name, \"class2\"], for: \"something\"}\n", null)
         println haml
-        String result = runScript(haml)
+        String result = runScript(haml, "{ model: { name: 'class1' } }")
         assertThat result, is(
             "<h1>\n" +
             "  <div id=\"test\">\n" +
-//            "    <p id=\"test2\" class=\"blah\" selected=\"selected\">\n" +
-//            "      This is some text\n" +
-//            "      This is some text\n" +
-//            "    </p>\n" +
-//            "    This is some div text\n" +
+            "    <p id=\"test2\" selected=\"selected\" class=\"blah\">\n" +
+            "      This is some text\n" +
+            "      This is some text\n" +
+            "    </p>\n" +
+            "    This is some div text\n" +
 //            "    <label for=\"a-b-c\"/>\n" +
-//            "    <div id=\"test-1\" class=\"class1 class2\" for=\"something\">\n" +
-//            "    </div>\n" +
+            "    <div id=\"test-1\" for=\"something\" class=\"class1 class2\">\n" +
+            "    </div>\n" +
             "  </div>\n" +
             "</h1>\n")
     }
 
-    private Object runScript(String haml) {
+    @Test
+    public void "invalid template"() {
+        try {
+            def haml = haml.compileHaml("invalid",
+                "%h1\n" +
+                    "  %h2\n" +
+                    "    %h3{%h3 %h4}\n" +
+                    "      %h4\n" +
+                    "        %h5", null)
+            fail("Should have thrown an exception")
+        } catch (RuntimeException e) {
+            assertThat e.message, containsString("at line 3 and character 11:\n    %h3{%h3 %h4}\n----------^")
+        }
+    }
+
+    @Test
+    public void "invalid template 2"() {
+        try {
+            def haml = haml.compileHaml("invalid",
+                "%h1\n" +
+                    "  %h2\n" +
+                    "    %h3{id: \"test\", class: \"test-class\"\n" +
+                    "      %h4\n" +
+                    "        %h5", null)
+            fail("Should have thrown an exception")
+        } catch (RuntimeException e) {
+            assertThat e.message, containsString("at line 3 and character 19:\n    %h3{id: \"test\", class: \"test-class\"\n------------------^")
+        }
+    }
+
+    private Object runScript(String haml, String context = "{}") {
         ScriptEngineManager factory = new ScriptEngineManager()
         ScriptEngine engine = factory.getEngineByName("JavaScript")
         engine.eval(IOUtils.toString(getClass().getResourceAsStream("/underscore.js")))
         engine.eval(IOUtils.toString(getClass().getResourceAsStream("/underscore.string.js")))
         engine.eval(IOUtils.toString(getClass().getResourceAsStream("/haml-runtime.js")))
-        def result = engine.eval("var fn = " + haml + "; fn({});")
+        def result = engine.eval("var fn = " + haml + "; fn(" + context + ");")
         result
     }
 
     /*
-
-beforeEach () ->
-  haml.cache = {}
-  @addMatchers(
-    toThrowContaining: (expected) ->
-      result = false
-      if typeof @actual isnt 'function'
-        throw new Error('Actual is not a function')
-      try
-        @actual()
-      catch e
-        exception = e
-
-      result = exception.toString().indexOf(expected) >= 0 if exception?
-
-      isnot = @isNot ? "not " : ""
-
-      @message = () ->
-        if exception
-          ["Expected function " + isnot + "to throw something with ", expected, ", but it threw", exception].join(' ')
-        else
-          "Expected function to throw an exception."
-
-      result
-  )
-
   describe 'invalid template', () ->
 
     beforeEach () ->
-      setFixtures('<script type="text/template" id="invalid">%h1\n' +
-        '  %h2\n' +
-        '    %h3{%h3 %h4}\n' +
-        '      %h4\n' +
-        '        %h5</script>' +
-        '<script type="text/template" id="invalid2">%h1\n' +
-        '  %h2\n' +
-        '    %h3{id: "test", class: "test-class"\n' +
-        '      %h4\n' +
-        '        %h5</script>' +
         '<script type="text/template" id="invalid3">' +
         '%a#back(href="#" class="button back)\n' +
         '%span Back\n' +
@@ -146,23 +142,6 @@ beforeEach () ->
         '%span Save and Continue\n' +
         '</script>'
       )
-
-    for generator in ['javascript', 'productionjavascript']
-      do (generator) ->
-        it 'should provide a meaningful message for ' + generator, () ->
-          # IE 7 and 8 add an extra newline at the start of the script contents
-          line = if isIe7or8() then '4' else '3'
-          expect(() -> haml.compileHaml(sourceId: 'invalid', generator: generator)() ).toThrowContaining(
-            switch generator
-              when 'productionjavascript' then 'Incorrect embedded code has resulted in an invalid Haml function'
-              else
-                'at line ' + line + ' and character 16:\n' +
-                '    %h3{%h3 %h4}\n' +
-                '---------------^')
-          expect(() -> haml.compileHaml(sourceId: 'invalid2', generator: generator) ).toThrowContaining('at line ' + line + ' and character 8:\n' +
-            '    %h3{id: "test", class: "test-class"\n' +
-            '-------^')
-          expect(() -> haml.compileHaml(sourceId: 'invalid3', generator: generator) ).toThrowContaining('Expected a quoted string or an identifier for the attribute value')
 
   describe 'template with () attributes', () ->
 

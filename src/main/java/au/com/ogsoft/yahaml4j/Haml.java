@@ -244,6 +244,7 @@ haml.filters = filters
             _hashEntry(hash, tokeniser, null);
             while (tokeniser.getToken().type == Token.TokenType.COMMA) {
                 tokeniser.getNextToken();
+                _whitespace(tokeniser);
                 _hashEntry(hash, tokeniser, options);
             }
             if (tokeniser.getToken().type != Token.TokenType.CLOSEBRACE) {
@@ -268,7 +269,7 @@ haml.filters = filters
                 _handleError(options, null, tokeniser,
                     new RuntimeException(tokeniser.parseError("Expected a colon (:) after a Hash key")));
             } else {
-                String value = tokeniser.skipToChars("},");
+                String value = generator.scanEmbeddedCode(tokeniser);
                 if (value == null) {
                     _handleError(options, null, tokeniser,
                         new RuntimeException(tokeniser.parseError("Expected a closing brace (}) to end an attribute hash or a comma (,) to continue onto another entry")));
