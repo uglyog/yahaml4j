@@ -8,7 +8,8 @@ import org.apache.commons.lang3.StringUtils;
 public class CodeBuffer {
 
     private final HamlGenerator generator;
-    private final StringBuilder buffer, outputBuffer;
+    private final StringBuilder buffer;
+    private final StringBuilder outputBuffer;
 
     public CodeBuffer(HamlGenerator generator) {
         this.generator = generator;
@@ -45,29 +46,31 @@ public class CodeBuffer {
     }
 
     public void trimWhitespace() {
-
+        if (buffer.length() > 0) {
+            int i = buffer.length() - 1;
+            while (i > 0) {
+                char ch = buffer.charAt(i);
+                if (_isWhitespace(ch)) {
+                    i--;
+                } else if (i > 1 && (ch == 'n' || ch == 't') && (buffer.charAt(i - 1) == '\\')) {
+                    i -= 2;
+                } else {
+                    break;
+                }
+            }
+            if (i > 0 && i < buffer.length() - 1) {
+                buffer.delete(i + 1, buffer.length());
+            } else if (i == 0 && _isWhitespace(buffer.charAt(0))) {
+                buffer.delete(0, buffer.length());
+            }
+        }
     }
 
-    /*
+    private boolean _isWhitespace(char ch) {
+        return ch == ' ' || ch == '\t' || ch == '\n';
+    }
 
-  trimWhitespace: () ->
-    if @buffer.length > 0
-      i = @buffer.length - 1
-      while i > 0
-        ch = @buffer.charAt(i)
-        if @_isWhitespace(ch)
-          i--
-        else if i > 1 and (ch == 'n' or ch == 't') and (@buffer.charAt(i - 1) == '\\')
-          i -= 2
-        else
-          break
-      if i > 0 and i < @buffer.length - 1
-        @buffer = @buffer.substring(0, i + 1)
-      else if i == 0 and @_isWhitespace(@buffer.charAt(0))
-        @buffer = ''
-
-  _isWhitespace: (ch) ->
-    ch == ' ' or ch == '\t' or ch == '\n'
-
-     */
+    public StringBuilder getBuffer() {
+        return buffer;
+    }
 }

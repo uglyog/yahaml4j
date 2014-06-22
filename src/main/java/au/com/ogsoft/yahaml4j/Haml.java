@@ -208,8 +208,10 @@ haml.filters = filters
             contents = tokeniser.skipToEOLorEOF()
           else*/
             contents = tokeniser.skipToEOLorEOF();
-            /*contents = contents.substring(1) if contents.match(/^\\/)
-            shouldInterpolate = true*/
+            if (contents.startsWith("\\")) {
+                contents = contents.substring(1);
+            }
+            shouldInterpolate = true;
 
           hasContents = StringUtils.isNotEmpty(contents);
           String indentText = "";

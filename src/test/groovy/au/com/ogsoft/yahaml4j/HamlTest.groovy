@@ -7,6 +7,9 @@ import org.junit.Test
 import javax.script.ScriptEngine
 import javax.script.ScriptEngineManager
 
+import static org.hamcrest.MatcherAssert.assertThat
+import static org.hamcrest.CoreMatchers.is
+
 public class HamlTest {
 
     Haml haml
@@ -36,6 +39,26 @@ public class HamlTest {
             "    </span>\n" +
             "  </div>\n" +
             "</h1>\n"
+    }
+
+    @Test
+    public void "simple template with text"() {
+        def haml = haml.compileHaml("simple", "%h1\n  %div\n    %p This is \"some\" text\n      This is \"some\" text\n    This is some <div> text\n    \\%span\n    %span %h1 %h1 %h1", null)
+        String result = runScript(haml)
+        assertThat result, is(
+            "<h1>\n" +
+            "  <div>\n" +
+            "    <p>\n" +
+            "      This is \"some\" text\n" +
+            "      This is \"some\" text\n" +
+            "    </p>\n" +
+            "    This is some <div> text\n" +
+            "    %span\n" +
+            "    <span>\n" +
+            "      %h1 %h1 %h1\n" +
+            "    </span>\n" +
+            "  </div>\n" +
+            "</h1>\n")
     }
 
     private Object runScript(String haml) {
@@ -72,17 +95,6 @@ beforeEach () ->
 
       result
   )
-
-          expect(html).toEqual(
-            '\n' +
-            '<h1>\n' +
-            '  <div>\n' +
-            '    <p>\n' +
-            '    </p>\n' +
-            '    <span>\n' +
-            '    </span>\n' +
-            '  </div>\n' +
-            '</h1>\n')
 
   describe 'invalid template', () ->
 
@@ -121,56 +133,6 @@ beforeEach () ->
             '    %h3{id: "test", class: "test-class"\n' +
             '-------^')
           expect(() -> haml.compileHaml(sourceId: 'invalid3', generator: generator) ).toThrowContaining('Expected a quoted string or an identifier for the attribute value')
-
-  describe 'simple template with text', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="simple">\n' +
-        '%h1\n' +
-        '  %div\n' +
-        '    %p This is "some" text\n' +
-        '      This is "some" text\n' +
-        '    This is some <div> text\n' +
-        '    \\%span\n' +
-        '    %span %h1 %h1 %h1</script>')
-
-    for generator in ['javascript', 'productionjavascript']
-      do (generator) ->
-        it 'should render the correct html for ' + generator, () ->
-          html = haml.compileHaml(sourceId: 'simple', generator: generator)()
-          expect(html).toEqual(
-            '\n' +
-            '<h1>\n' +
-            '  <div>\n' +
-            '    <p>\n' +
-            '      This is "some" text\n' +
-            '      This is "some" text\n' +
-            '    </p>\n' +
-            '    This is some <div> text\n' +
-            '    %span\n' +
-            '    <span>\n' +
-            '      %h1 %h1 %h1\n' +
-            '    </span>\n' +
-            '  </div>\n' +
-            '</h1>\n')
-
-    it 'should render the correct html with coffeescript', () ->
-      html = haml.compileCoffeeHaml('simple')()
-      expect(html).toEqual(
-        '\n' +
-        '<h1>\n' +
-        '  <div>\n' +
-        '    <p>\n' +
-        '      This is "some" text\n' +
-        '      This is "some" text\n' +
-        '    </p>\n' +
-        '    This is some <div> text\n' +
-        '    %span\n' +
-        '    <span>\n' +
-        '      %h1 %h1 %h1\n' +
-        '    </span>\n' +
-        '  </div>\n' +
-        '</h1>\n')
 
   describe 'template with {} attributes', () ->
 

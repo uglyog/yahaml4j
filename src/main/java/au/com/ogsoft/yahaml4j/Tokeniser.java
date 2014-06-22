@@ -277,8 +277,14 @@ public class Tokeniser {
         return HamlRuntime.templateError(lineNumber, characterNumber, currentLine, error);
     }
 
+    /**
+     * Pushes back the current token onto the front of the input buffer
+     */
     public void pushBackToken() {
-
+        if (token.type != Token.TokenType.EOF) {
+            buffer.position(-token.getMatched().length());
+            token = prevToken;
+        }
     }
 
     /*
@@ -332,14 +338,6 @@ public class Tokeniser {
     @advanceCharsInBuffer(contents.length - 1)
     @getNextToken()
     text
-
-    ###
-    Pushes back the current token onto the front of the input buffer
-    ###
-    pushBackToken: ->
-            if !@token.eof
-    @bufferIndex -= @token.matched.length
-    @token = @prevToken
 
     ###
     Is the current token an end of line or end of input buffer
