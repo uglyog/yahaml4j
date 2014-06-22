@@ -9,22 +9,11 @@ import java.util.regex.Pattern;
  */
 public class Tokeniser {
 
-    private final String name;
-    private final String source;
-    private final SourceBuffer buffer;
-    private Token token;
-    private Token prevToken;
-    private Integer lineNumber;
-    private Integer characterNumber;
-    private String currentLine;
-
-    private static Pattern CURRENT_LINE_MATCHER = Pattern.compile("[^\\n]*");
-
     // tokenMatchers
     private static Pattern WHITESPACE = Pattern.compile("[ \\t]+");
     private static Pattern ELEMENT = Pattern.compile("%[a-zA-Z][a-zA-Z0-9]*");
-//        idSelector:       /#[a-zA-Z_\-][a-zA-Z0-9_\-]* /g,
-//        classSelector:    /\.[a-zA-Z0-9_\-]+/g,
+    private static Pattern IDSELECTOR = Pattern.compile("#[a-zA-Z0-9_\\-]+");
+    private static Pattern CLASSSELECTOR = Pattern.compile("\\.[a-zA-Z0-9_\\-]+");
 //        identifier:       /[a-zA-Z][a-zA-Z0-9\-]* /g,
 //        quotedString:     /[\'][^\'\n]*[\']/g,
 //        quotedString2:    /[\"][^\"\n]*[\"]/g,
@@ -36,6 +25,66 @@ public class Tokeniser {
     private static Pattern CONTINUELINE = Pattern.compile("\\|[ \\t]*\\n");
     private static Pattern FILTER = Pattern.compile(":\\w+");
     private static Pattern CODE_IDENTIFIER = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
+
+    private final String name;
+    private final String source;
+    private final SourceBuffer buffer;
+    private Token token;
+    private Token prevToken;
+    private Integer lineNumber;
+    private Integer characterNumber;
+    private String currentLine;
+
+    private static Pattern CURRENT_LINE_MATCHER = Pattern.compile("[^\\n]*");
+
+    private Mode mode;
+
+    /**
+     * Is the current token an end of line or end of input buffer
+     */
+    public boolean isEolOrEof() {
+        return token.type == Token.TokenType.EOL || token.type == Token.TokenType.EOF;
+    }
+
+    /**
+     * Look ahead a number of tokens and return the token found
+     */
+    public Token lookAhead(int numberOfTokens) {
+        Token token = null;
+        if (numberOfTokens > 0) {
+            Token currentToken = this.token;
+            Token prevToken = this.prevToken;
+            String currentLine = this.currentLine;
+            int lineNumber = this.lineNumber;
+            int characterNumber = this.characterNumber;
+            buffer.mark();
+
+            int i = 0;
+            while (i++ < numberOfTokens) {
+                token = getNextToken();
+            }
+
+            this.token = currentToken;
+            this.prevToken = prevToken;
+            this.currentLine = currentLine;
+            this.lineNumber = lineNumber;
+            this.characterNumber = characterNumber;
+            buffer.reset();
+        }
+        return token;
+    }
+
+    public void setMode(Mode mode) {
+        this.mode = mode;
+    }
+
+    public void clearMode() {
+        this.mode = null;
+    }
+
+    public enum Mode {
+        ATTRHASH
+    }
 
     private interface MatchedFn {
         public String match(String value);
@@ -91,11 +140,24 @@ public class Tokeniser {
                     return value.substring(1);
                 }
             });
-            matchMultiCharToken(CODE_IDENTIFIER, Token.TokenType.CODE_ID, null);
+            matchMultiCharToken(IDSELECTOR, Token.TokenType.IDSELECTOR, new MatchedFn() {
+                            @Override
+                            public String match(String value) {
+                    return value.substring(1);
+                }
+            });
+            matchMultiCharToken(CLASSSELECTOR, Token.TokenType.CLASSSELECTOR, new MatchedFn() {
+                                        @Override
+                                        public String match(String value) {
+                    return value.substring(1);
+                }
+            });
+
+            if (this.mode == Mode.ATTRHASH) {
+                matchMultiCharToken(CODE_IDENTIFIER, Token.TokenType.CODE_ID, null);
+            }
 
                 /*
-              @matchMultiCharToken(@tokenMatchers.idSelector, { idSelector: true, token: 'ID' }, (matched) -> matched.substring(1) )
-              @matchMultiCharToken(@tokenMatchers.classSelector, { classSelector: true, token: 'CLASS' }, (matched) -> matched.substring(1) )
               @matchMultiCharToken(@tokenMatchers.identifier, { identifier: true, token: 'IDENTIFIER' })
               @matchMultiCharToken(@tokenMatchers.doctype, { doctype: true, token: 'DOCTYPE' })
               @matchMultiCharToken(@tokenMatchers.filter, { filter: true, token: 'FILTER' }, (matched) -> matched.substring(1) )
@@ -120,13 +182,13 @@ public class Tokeniser {
             matchSingleCharToken('}', Token.TokenType.CLOSEBRACE);
             matchSingleCharToken(',', Token.TokenType.COMMA);
             matchSingleCharToken(':', Token.TokenType.COLON);
+            matchSingleCharToken('/', Token.TokenType.SLASH);
 
               /*
 
               @matchSingleCharToken('(', { openBracket: true, token: 'OPENBRACKET' })
               @matchSingleCharToken(')', { closeBracket: true, token: 'CLOSEBRACKET' })
               @matchSingleCharToken('=', { equal: true, token: 'EQUAL' })
-              @matchSingleCharToken('/', { slash: true, token: 'SLASH' })
               @matchSingleCharToken('!', { exclamation: true, token: 'EXCLAMATION' })
               @matchSingleCharToken('-', { minus: true, token: 'MINUS' })
               @matchSingleCharToken('&', { amp: true, token: 'AMP' })
@@ -331,30 +393,6 @@ public class Tokeniser {
     /*
 
     ###
-    Look ahead a number of tokens and return the token found
-    ###
-    lookAhead: (numberOfTokens) ->
-    token = null
-            if numberOfTokens > 0
-    currentToken = @token
-    prevToken = @prevToken
-    currentLine = @currentLine
-    lineNumber = @lineNumber
-    characterNumber = @characterNumber
-    bufferIndex = @bufferIndex
-
-    i = 0
-    token = this.getNextToken() while i++ < numberOfTokens
-
-    @token = currentToken
-    @prevToken = prevToken
-    @currentLine = currentLine
-    @lineNumber = lineNumber
-    @characterNumber = characterNumber
-    @bufferIndex = bufferIndex
-            token
-
-    ###
     Parses a multiline code block and returns the parsed text
     ###
     parseMultiLine: ->
@@ -369,12 +407,6 @@ public class Tokeniser {
     @advanceCharsInBuffer(contents.length - 1)
     @getNextToken()
     text
-
-    ###
-    Is the current token an end of line or end of input buffer
-    ###
-    isEolOrEof: ->
-    @token.eol or @token.eof
 
     ###
     Calculate the indent value of the current line

@@ -6,10 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.script.ScriptException;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * HAML compiler for the JVM
@@ -21,12 +18,7 @@ import java.util.Map;
 class Haml {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Haml.class);
-
-    /*
-haml.CodeBuffer = CodeBuffer
-haml.HamlRuntime = HamlRuntime
-haml.filters = filters
-     */
+    private static final List<String> SELF_CLOSING_TAGS = Arrays.asList("meta", "img", "link", "script", "br", "hr");
 
     private HamlGenerator generator;
     private Tokeniser tokeniser;
@@ -161,8 +153,8 @@ haml.filters = filters
         }
 
         String identifier = _element(tokeniser);
-        String id = ""; // @_idSelector(tokeniser)
-        List<String> classes = Collections.emptyList(); // @_classSelector(tokeniser)
+        String id = _idSelector(tokeniser);
+        List<String> classes = _classSelector(tokeniser);
         String objectRef = null; // @_objectReference(tokeniser)
         Map<String, String> attrList = Collections.emptyMap(); // @_attributeList(tokeniser, options)
 
@@ -175,10 +167,11 @@ haml.filters = filters
         tagOptions.outerWhitespace = true;
         boolean lineHasElement = _lineHasElement(identifier, id, classes);
 
-        /*if tokeniser.token.slash
-          tagOptions.selfClosingTag = true
-          tokeniser.getNextToken()
-        if tokeniser.token.gt and lineHasElement
+        if (tokeniser.getToken().type == Token.TokenType.SLASH) {
+            tagOptions.selfClosingTag = true;
+            tokeniser.getNextToken();
+        }
+        /*if tokeniser.token.gt and lineHasElement
           tagOptions.outerWhitespace = false
           tokeniser.getNextToken()
         if tokeniser.token.lt and lineHasElement
@@ -187,7 +180,7 @@ haml.filters = filters
 
         if (lineHasElement) {
             if (!tagOptions.selfClosingTag) {
-                // tagOptions.selfClosingTag = haml._isSelfClosingTag(identifier) and !haml._tagHasContents(indent, tokeniser)
+                tagOptions.selfClosingTag = _isSelfClosingTag(identifier) && !_tagHasContents(indent, tokeniser);
             }
             _openElement(currentParsePoint, indent, identifier, id, classes, objectRef, attrList, attributesHash, elementStack,
                 tagOptions, generator);
@@ -228,17 +221,53 @@ haml.filters = filters
 
           _eolOrEof(tokeniser);
 
-        /*if tagOptions.selfClosingTag and hasContents
-          @_handleError(options, null, tokeniser, haml.HamlRuntime.templateError(currentParsePoint.lineNumber, currentParsePoint.characterNumber,
-                  currentParsePoint.currentLine, "A self-closing tag can not have any contents"))
-             */
+        if (tagOptions.selfClosingTag && hasContents) {
+            _handleError(options, null, tokeniser, new RuntimeException(HamlRuntime.templateError(
+                currentParsePoint.lineNumber, currentParsePoint.characterNumber,
+                currentParsePoint.currentLine, "A self-closing tag can not have any contents")));
+        }
+    }
 
+    private boolean _tagHasContents(int indent, Tokeniser tokeniser) {
+        if (!tokeniser.isEolOrEof()) {
+            return true;
+        } else {
+            Token nextToken = tokeniser.lookAhead(1);
+            return nextToken.type == Token.TokenType.WS && nextToken.getTokenString().length() / 2 > indent;
+        }
+    }
+
+    private boolean _isSelfClosingTag(String identifier) {
+        return SELF_CLOSING_TAGS.contains(identifier);
+    }
+
+    // CLASSSELECTOR = (.CLASS)+
+    private List<String> _classSelector(Tokeniser tokeniser) {
+        List<String> classes = new ArrayList<String>();
+
+        while(tokeniser.getToken().type == Token.TokenType.CLASSSELECTOR) {
+            classes.add(tokeniser.getToken().getTokenString());
+            tokeniser.getNextToken();
+        }
+
+        return classes;
+    }
+
+    // IDSELECTOR = # ID
+    private String _idSelector(Tokeniser tokeniser) {
+        String id = "";
+        if (tokeniser.getToken().type == Token.TokenType.IDSELECTOR) {
+            id = tokeniser.getToken().getTokenString();
+            tokeniser.getNextToken();
+        }
+        return id;
     }
 
     private Map<String, String> _attributeHash(Tokeniser tokeniser, HamlOptions options) {
         Map<String, String> hash = new HashMap<String, String>();
-        // HASH -> '{ WS* HASH_ENTRY ( ',' WS* HASH_ENTRY )*  '}'
+        // HASH -> "{ WS* HASH_ENTRY ( "," WS* HASH_ENTRY )*  "}"
         if (tokeniser.getToken().type == Token.TokenType.OPENBRACE) {
+            tokeniser.setMode(Tokeniser.Mode.ATTRHASH);
             tokeniser.getNextToken();
             _whitespace(tokeniser);
             _hashEntry(hash, tokeniser, null);
@@ -253,11 +282,12 @@ haml.filters = filters
             }
             tokeniser.getNextToken();
         }
+        tokeniser.clearMode();
         return hash;
     }
 
     private void _hashEntry(Map<String, String> hash, Tokeniser tokeniser, HamlOptions options) {
-        // HASH_ENTRY -> IDENTIFIER WS* ':' WS* !(',' '}')
+        // HASH_ENTRY -> IDENTIFIER WS* ":" WS* !("," "}")
         if (tokeniser.getToken().type != Token.TokenType.CODE_ID) {
             _handleError(options, null, tokeniser,
                 new RuntimeException(tokeniser.parseError("Hash keys must be normal identifiers")));
@@ -414,20 +444,20 @@ haml.filters = filters
       if contents and contents.length > 0
         params = contents.split(/\s+/)
         switch params[0]
-          when 'XML'
+          when "XML"
             if params.length > 1
-              generator.outputBuffer.append("<?xml version='1.0' encoding='#{params[1]}' ?>")
+              generator.outputBuffer.append("<?xml version="1.0" encoding="#{params[1]}" ?>")
             else
-              generator.outputBuffer.append("<?xml version='1.0' encoding='utf-8' ?>")
-          when 'Strict' then generator.outputBuffer.append('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">')
-          when 'Frameset' then generator.outputBuffer.append('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Frameset//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd">')
-          when '5' then generator.outputBuffer.append('<!DOCTYPE html>')
-          when '1.1' then generator.outputBuffer.append('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">')
-          when 'Basic' then generator.outputBuffer.append('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML Basic 1.1//EN" "http://www.w3.org/TR/xhtml-basic/xhtml-basic11.dtd">')
-          when 'Mobile' then generator.outputBuffer.append('<!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.2//EN" "http://www.openmobilealliance.org/tech/DTD/xhtml-mobile12.dtd">')
-          when 'RDFa' then generator.outputBuffer.append('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML+RDFa 1.0//EN" "http://www.w3.org/MarkUp/DTD/xhtml-rdfa-1.dtd">')
+              generator.outputBuffer.append("<?xml version="1.0" encoding="utf-8" ?>")
+          when "Strict" then generator.outputBuffer.append("<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">")
+          when "Frameset" then generator.outputBuffer.append("<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Frameset//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd">")
+          when "5" then generator.outputBuffer.append("<!DOCTYPE html>")
+          when "1.1" then generator.outputBuffer.append("<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">")
+          when "Basic" then generator.outputBuffer.append("<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML Basic 1.1//EN" "http://www.w3.org/TR/xhtml-basic/xhtml-basic11.dtd">")
+          when "Mobile" then generator.outputBuffer.append("<!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.2//EN" "http://www.openmobilealliance.org/tech/DTD/xhtml-mobile12.dtd">")
+          when "RDFa" then generator.outputBuffer.append("<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML+RDFa 1.0//EN" "http://www.w3.org/MarkUp/DTD/xhtml-rdfa-1.dtd">")
       else
-        generator.outputBuffer.append('<!DOCTYPE html>')
+        generator.outputBuffer.append("<!DOCTYPE html>")
       generator.outputBuffer.append(@_newline(tokeniser))
       tokeniser.getNextToken()
 
@@ -435,7 +465,7 @@ haml.filters = filters
     if tokeniser.token.filter
       filter = tokeniser.token.tokenString
       unless haml.filters[filter]
-        @_handleError(options, skipTo: indent, tokeniser, tokeniser.parseError("Filter '#{filter}' not registered. Filter functions need to be added to 'haml.filters'."))
+        @_handleError(options, skipTo: indent, tokeniser, tokeniser.parseError("Filter "#{filter}" not registered. Filter functions need to be added to "haml.filters"."))
         return
 
       tokeniser.skipToEOLorEOF()
@@ -470,7 +500,7 @@ haml.filters = filters
 
       generator.outputBuffer.append(contents) if contents and contents.length > 0
 
-      if contents and (_.str || _).startsWith(contents, '[') and contents.match(/\]\s*$/)
+      if contents and (_.str || _).startsWith(contents, "[") and contents.match(/\]\s*$/)
         elementStack[indent] = htmlConditionalComment: true, eol: @_newline(tokeniser)
         generator.outputBuffer.append(">")
       else
@@ -528,7 +558,7 @@ haml.filters = filters
         elementStack[indent] = block: true
 
   _objectReference: (tokeniser) ->
-    attr = ''
+    attr = ""
     if tokeniser.token.objectReference
       attr = tokeniser.token.tokenString
       tokeniser.getNextToken()
@@ -561,7 +591,7 @@ haml.filters = filters
       name = tokeniser.token.tokenString
       tokeniser.getNextToken()
       haml._whitespace(tokeniser)
-      throw tokeniser.parseError("Expected '=' after attribute name") unless tokeniser.token.equal
+      throw tokeniser.parseError("Expected "=" after attribute name") unless tokeniser.token.equal
       tokeniser.getNextToken();
       haml._whitespace(tokeniser)
       if !tokeniser.token.string and !tokeniser.token.identifier
@@ -572,40 +602,6 @@ haml.filters = filters
       tokeniser.getNextToken()
 
     attr
-
-  _isSelfClosingTag: (tag) ->
-    tag in ['meta', 'img', 'link', 'script', 'br', 'hr']
-
-  _tagHasContents: (indent, tokeniser) ->
-    if !tokeniser.isEolOrEof()
-      true
-    else
-      nextToken = tokeniser.lookAhead(1)
-      nextToken.ws and nextToken.tokenString.length / 2 > indent
-
-  hasValue: (value) ->
-    value? && value isnt false
-
-  attrValue: (attr, value) ->
-    if attr in ['selected', 'checked', 'disabled'] then attr else value
-
-  # IDSELECTOR = # ID
-  _idSelector: (tokeniser) ->
-    id = ''
-    if tokeniser.token.idSelector
-      id = tokeniser.token.tokenString
-      tokeniser.getNextToken()
-    id
-
-  # CLASSSELECTOR = (.CLASS)+
-  _classSelector: (tokeniser) ->
-    classes = []
-
-    while tokeniser.token.classSelector
-      classes.push(tokeniser.token.tokenString)
-      tokeniser.getNextToken()
-
-    classes
 
      */
 

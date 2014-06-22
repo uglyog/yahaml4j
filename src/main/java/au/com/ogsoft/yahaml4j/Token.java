@@ -15,7 +15,8 @@ public class Token {
     }
 
     public enum TokenType {
-        EOF, WS, CONTINUELINE, UNKNOWN, ELEMENT, MINUS, OPENBRACE, CLOSEBRACE, COMMA, CODE_ID, COLON, EOL
+        EOF, WS, CONTINUELINE, UNKNOWN, ELEMENT, MINUS, OPENBRACE, CLOSEBRACE, COMMA, CODE_ID, COLON, IDSELECTOR,
+        CLASSSELECTOR, SLASH, EOL
     }
 
     public final TokenType type;

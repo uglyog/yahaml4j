@@ -121,6 +121,118 @@ public class HamlTest {
         }
     }
 
+//    @Test
+//    public void "template with () attributes"() {
+//        def haml = haml.compileHaml("attributes",
+//            "'%h1\\n' +\n" +
+//            "        '  %div(id = \"test\")\\n' +\n" +
+//            "        '    %p(id=test2 class=\"blah\"\\n selected=\"selected\") This is some text\\n' +\n" +
+//            "        '      This is some text\\n' +\n" +
+//            "        '    This is some div text\\n' +\n" +
+//            "        '    %div(id=test){id: 1, class: [model.name, \"class2\"]}\\n' +\n" +
+//            "        '    %a(href=\"#\" data-key=\"MOD_DESC\")/'", null)
+//        println haml
+//        String result = runScript(haml, "{ model: { name: 'class1' } }")
+//        assertThat result, is(
+//            "\n" +
+//            "<h1>\n" +
+//            "  <div id=\"test\">\n" +
+//            "    <p id=\"test2\" class=\"blah\" selected=\"selected\">\n" +
+//            "      This is some text\n" +
+//            "      This is some text\n" +
+//            "    </p>\n" +
+//            "    This is some div text\n" +
+//            "    <div id=\"test-1\" class=\"class1 class2\">\n" +
+//            "    </div>\n" +
+//            "    <a href=\"#\" data-key=\"MOD_DESC\"/>\n" +
+//            "  </div>\n" +
+//            "</h1>\n")
+//    }
+
+    @Test
+    public void "template with id and class selectors"() {
+        def haml = haml.compileHaml("attributes",
+            "%h1\n" +
+            "  #test.test\n" +
+            "    %p#test.blah{id: 2, class: \"test\"} This is some text\n" +
+            "      This is some text\n" +
+            "    This is some div text\n" +
+            "    .class1.class2/\n", null)
+        String result = runScript(haml, "{ model: { name: 'class1' } }")
+        assertThat result, is(
+            "<h1>\n" +
+            "  <div id=\"test\" class=\"test\">\n" +
+            "    <p id=\"test-2\" class=\"blah test\">\n" +
+            "      This is some text\n" +
+            "      This is some text\n" +
+            "    </p>\n" +
+            "    This is some div text\n" +
+            "    <div class=\"class1 class2\"/>\n" +
+            "  </div>\n" +
+            "</h1>\n")
+    }
+
+    @Test
+    public void "template with self-closing tags"() {
+        def haml = haml.compileHaml("self closing tags",
+            "%div\n" +
+            "  meta, img, link, script, br, and hr\n" +
+            "  %meta\n" +
+            "  %meta/\n" +
+            "  %meta\n" +
+            "    meta\n" +
+            "  %img\n" +
+            "  %img/\n" +
+            "  %img\n" +
+            "    img\n" +
+            "  %link\n" +
+            "  %link/\n" +
+            "  %link\n" +
+            "    link\n" +
+            "  %br\n" +
+            "  %br/\n" +
+            "  %br\n" +
+            "    br/\n" +
+            "  %hr\n" +
+            "  %hr/\n" +
+            "  %hr\n" +
+            "    hr\n" +
+            "  %div/\n" +
+            "  %p/\n", null)
+        String result = runScript(haml)
+        assertThat result, is(
+            "<div>\n" +
+            "  meta, img, link, script, br, and hr\n" +
+            "  <meta/>\n" +
+            "  <meta/>\n" +
+            "  <meta>\n" +
+            "    meta\n" +
+            "  </meta>\n" +
+            "  <img/>\n" +
+            "  <img/>\n" +
+            "  <img>\n" +
+            "    img\n" +
+            "  </img>\n" +
+            "  <link/>\n" +
+            "  <link/>\n" +
+            "  <link>\n" +
+            "    link\n" +
+            "  </link>\n" +
+            "  <br/>\n" +
+            "  <br/>\n" +
+            "  <br>\n" +
+            "    br/\n" +
+            "  </br>\n" +
+            "  <hr/>\n" +
+            "  <hr/>\n" +
+            "  <hr>\n" +
+            "    hr\n" +
+            "  </hr>\n" +
+            "  <div/>\n" +
+            "  <p/>\n" +
+            "</div>\n")
+    }
+
     private Object runScript(String haml, String context = "{}") {
         ScriptEngineManager factory = new ScriptEngineManager()
         ScriptEngine engine = factory.getEngineByName("JavaScript")
@@ -142,130 +254,6 @@ public class HamlTest {
         '%span Save and Continue\n' +
         '</script>'
       )
-
-  describe 'template with () attributes', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="attributes">\n' +
-        '%h1\n' +
-        '  %div(id = "test")\n' +
-        '    %p(id=test2 class="blah"\n selected="selected") This is some text\n' +
-        '      This is some text\n' +
-        '    This is some div text\n' +
-        '    %div(id=test){id: 1, class: [model.name, "class2"]}\n' +
-        '    %a(href="#" data-key="MOD_DESC")/' +
-        '</script>')
-
-    for generator in ['javascript', 'productionjavascript']
-      do (generator) ->
-        it 'should render the correct html for ' + generator, () ->
-          html = haml.compileHaml(sourceId: 'attributes', generator: generator)({ model: { name: 'class1' } })
-          expect(html).toEqual(
-            '\n' +
-            '<h1>\n' +
-            '  <div id="test">\n' +
-            '    <p id="test2" class="blah" selected="selected">\n' +
-            '      This is some text\n' +
-            '      This is some text\n' +
-            '    </p>\n' +
-            '    This is some div text\n' +
-            '    <div id="test-1" class="class1 class2">\n' +
-            '    </div>\n' +
-            '    <a href="#" data-key="MOD_DESC"/>\n' +
-            '  </div>\n' +
-            '</h1>\n')
-
-  describe 'template with id and class selectors', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="attributes">\n' +
-        '%h1\n' +
-        '  #test.test\n' +
-        '    %p#test.blah{id: 2, class: "test"} This is some text\n' +
-        '      This is some text\n' +
-        '    This is some div text\n' +
-        '    .class1.class2/\n' +
-        '</script>')
-
-    it 'should render the correct html', () ->
-      html = haml.compileHaml('attributes')()
-      expect(html).toEqual(
-        '\n' +
-        '<h1>\n' +
-        '  <div id="test" class="test">\n' +
-        '    <p id="test-2" class="blah test">\n' +
-        '      This is some text\n' +
-        '      This is some text\n' +
-        '    </p>\n' +
-        '    This is some div text\n' +
-        '    <div class="class1 class2"/>\n' +
-        '  </div>\n' +
-        '</h1>\n')
-
-  describe 'template with self-closing tags', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="self-closing-tags">\n' +
-        '%div\n' +
-        '  meta, img, link, script, br, and hr\n' +
-        '  %meta\n' +
-        '  %meta/\n' +
-        '  %meta\n' +
-        '    meta\n' +
-        '  %img\n' +
-        '  %img/\n' +
-        '  %img\n' +
-        '    img\n' +
-        '  %link\n' +
-        '  %link/\n' +
-        '  %link\n' +
-        '    link\n' +
-        '  %br\n' +
-        '  %br/\n' +
-        '  %br\n' +
-        '    br/\n' +
-        '  %hr\n' +
-        '  %hr/\n' +
-        '  %hr\n' +
-        '    hr\n' +
-        '  %div/\n' +
-        '  %p/\n' +
-        '</script>')
-
-    it 'should render the correct html', () ->
-      html = haml.compileHaml('self-closing-tags')({})
-      expect(html).toEqual(
-        '\n' +
-        '<div>\n' +
-        '  meta, img, link, script, br, and hr\n' +
-        '  <meta/>\n' +
-        '  <meta/>\n' +
-        '  <meta>\n' +
-        '    meta\n' +
-        '  </meta>\n' +
-        '  <img/>\n' +
-        '  <img/>\n' +
-        '  <img>\n' +
-        '    img\n' +
-        '  </img>\n' +
-        '  <link/>\n' +
-        '  <link/>\n' +
-        '  <link>\n' +
-        '    link\n' +
-        '  </link>\n' +
-        '  <br/>\n' +
-        '  <br/>\n' +
-        '  <br>\n' +
-        '    br/\n' +
-        '  </br>\n' +
-        '  <hr/>\n' +
-        '  <hr/>\n' +
-        '  <hr>\n' +
-        '    hr\n' +
-        '  </hr>\n' +
-        '  <div/>\n' +
-        '  <p/>\n' +
-        '</div>\n')
 
   describe 'template with unescaped HTML', () ->
 
