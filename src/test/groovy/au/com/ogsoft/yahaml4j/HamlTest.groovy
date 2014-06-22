@@ -43,7 +43,7 @@ public class HamlTest {
 
     @Test
     public void "simple template with text"() {
-        def haml = haml.compileHaml("simple", "%h1\n  %div\n    %p This is \"some\" text\n      This is \"some\" text\n    This is some <div> text\n    \\%span\n    %span %h1 %h1 %h1", null)
+        def haml = haml.compileHaml("simple with text", "%h1\n  %div\n    %p This is \"some\" text\n      This is \"some\" text\n    This is some <div> text\n    \\%span\n    %span %h1 %h1 %h1", null)
         String result = runScript(haml)
         assertThat result, is(
             "<h1>\n" +
@@ -61,9 +61,39 @@ public class HamlTest {
             "</h1>\n")
     }
 
+    @Test
+    public void "template with {} attributes"() {
+        def haml = haml.compileHaml("attributes",
+            "%h1\n" +
+            "  %div{id: \"test\"}\n" /*+
+            "    %p{id: 'test2', " +
+            "        class: \"blah\", name: null, test: false, checked: false, selected: true} This is some text\n" +
+            "      This is some text\n" +
+            "    This is some div text\n" +
+            "    %label(for = \"a\"){for: [\"b\", \"c\"]}/\n" +
+            "    %div{id: ['test', 1], class: [model.name, \"class2\"], for: \"something\"}\n"*/, null)
+        println haml
+        String result = runScript(haml)
+        assertThat result, is(
+            "<h1>\n" +
+            "  <div id=\"test\">\n" +
+//            "    <p id=\"test2\" class=\"blah\" selected=\"selected\">\n" +
+//            "      This is some text\n" +
+//            "      This is some text\n" +
+//            "    </p>\n" +
+//            "    This is some div text\n" +
+//            "    <label for=\"a-b-c\"/>\n" +
+//            "    <div id=\"test-1\" class=\"class1 class2\" for=\"something\">\n" +
+//            "    </div>\n" +
+            "  </div>\n" +
+            "</h1>\n")
+    }
+
     private Object runScript(String haml) {
         ScriptEngineManager factory = new ScriptEngineManager()
         ScriptEngine engine = factory.getEngineByName("JavaScript")
+        engine.eval(IOUtils.toString(getClass().getResourceAsStream("/underscore.js")))
+        engine.eval(IOUtils.toString(getClass().getResourceAsStream("/underscore.string.js")))
         engine.eval(IOUtils.toString(getClass().getResourceAsStream("/haml-runtime.js")))
         def result = engine.eval("var fn = " + haml + "; fn({});")
         result
@@ -133,66 +163,6 @@ beforeEach () ->
             '    %h3{id: "test", class: "test-class"\n' +
             '-------^')
           expect(() -> haml.compileHaml(sourceId: 'invalid3', generator: generator) ).toThrowContaining('Expected a quoted string or an identifier for the attribute value')
-
-  describe 'template with {} attributes', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="attributes">\n' +
-        '%h1\n' +
-        '  %div{id: "test"}\n' +
-        '    %p{id: \'test2\', ' +
-        '        class: "blah", name: null, test: false, checked: false, selected: true} This is some text\n' +
-        '      This is some text\n' +
-        '    This is some div text\n' +
-        '    %label(for = "a"){for: ["b", "c"]}/\n' +
-        '    %div{id: [\'test\', 1], class: [model.name, "class2"], for: "something"}\n' +
-        '</script>\n' +
-        '<script type="text/template" id="coffee-attributes">\n' +
-        '%h1\n' +
-        '  %div{id: "test"}\n' +
-        '    %p{id: \'test2\', ' +
-        '        class: "blah", name: null, test: false, checked: false, selected: true} This is some text\n' +
-        '      This is some text\n' +
-        '    This is some div text\n' +
-        '    %label(for = "a"){for: ["b", "c"]}/\n' +
-        '    %div{id: [\'test\', 1], class: [@model.name, "class2"], for: "something"}\n' +
-        '</script>')
-
-    for generator in ['javascript', 'productionjavascript']
-      do (generator) ->
-        it 'should render the correct html for ' + generator, () ->
-          html = haml.compileHaml(sourceId: 'attributes', generator: generator)({ model: { name: 'class1' } })
-          expect(html).toEqual(
-            '\n' +
-            '<h1>\n' +
-            '  <div id="test">\n' +
-            '    <p id="test2" class="blah" selected="selected">\n' +
-            '      This is some text\n' +
-            '      This is some text\n' +
-            '    </p>\n' +
-            '    This is some div text\n' +
-            '    <label for="a-b-c"/>\n' +
-            '    <div id="test-1" class="class1 class2" for="something">\n' +
-            '    </div>\n' +
-            '  </div>\n' +
-            '</h1>\n')
-
-    it 'with coffescript should render the correct html', () ->
-      html = haml.compileCoffeeHaml('coffee-attributes').call({ model: { name: 'class1' } })
-      expect(html).toEqual(
-        '\n' +
-        '<h1>\n' +
-        '  <div id="test">\n' +
-        '    <p id="test2" class="blah" selected="selected">\n' +
-        '      This is some text\n' +
-        '      This is some text\n' +
-        '    </p>\n' +
-        '    This is some div text\n' +
-        '    <label for="a-b-c"/>\n' +
-        '    <div id="test-1" class="class1 class2" for="something">\n' +
-        '    </div>\n' +
-        '  </div>\n' +
-        '</h1>\n')
 
   describe 'template with () attributes', () ->
 

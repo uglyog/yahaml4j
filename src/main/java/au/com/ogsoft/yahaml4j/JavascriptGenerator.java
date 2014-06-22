@@ -93,26 +93,32 @@ public class JavascriptGenerator extends BaseCodeGenerator {
      * Generate the code for dynamic attributes ({} form)
      */
     @Override
-    public void generateCodeForDynamicAttributes(String id, List<String> classes, Map<String, String> attributeList, String attributeHash, String objectRef, ParsePoint currentParsePoint) {
-        /*@outputBuffer.flush()
-        if attributeHash.length > 0
-          attributeHash = @replaceReservedWordsInHash(attributeHash)
-          @outputBuffer.appendToOutputBuffer('    hashFunction = function () { return eval("hashObject = ' +
-            attributeHash.replace(/"/g, '\\"').replace(/\n/g, '\\n') + '"); };\n')
-        else
-          @outputBuffer.appendToOutputBuffer('    hashFunction = null;\n')
-        if objectRef.length > 0
-          @outputBuffer.appendToOutputBuffer('    objRefFn = function () { return eval("objRef = ' +
-            objectRef.replace(/"/g, '\\"') + '"); };\n')
-        else
-          @outputBuffer.appendToOutputBuffer('    objRefFn = null;\n');
+    public void generateCodeForDynamicAttributes(String id, List<String> classes, Map<String, String> attributeList,
+                                                 Map<String, String> attributeHash, String objectRef, ParsePoint currentParsePoint) {
+        outputBuffer.flush();
+        if (!attributeHash.isEmpty()) {
+            String hashStr = "";
+            for (Map.Entry<String, String> entry : attributeHash.entrySet()) {
+                String key = entry.getKey();
+                hashStr += "\\\"" + key + "\\\": " + entry.getValue().replaceAll("[\"]", "\\\\\"").replaceAll("\n", "\\n");
+            }
+            outputBuffer.appendToOutputBuffer("    hashFunction = function () { return eval(\"hashObject = {" +
+                hashStr + " }\"); }\n");
+        } else {
+            outputBuffer.appendToOutputBuffer("    hashFunction = null;\n");
+        }
+//        if objectRef.length > 0
+//          @outputBuffer.appendToOutputBuffer('    objRefFn = function () { return eval("objRef = ' +
+//            objectRef.replace(/"/g, '\\"') + '"); };\n')
+//        else
+//          @outputBuffer.appendToOutputBuffer('    objRefFn = null;\n');
 
-        @outputBuffer.appendToOutputBuffer('    html.push(haml.HamlRuntime.generateElementAttributes(context, "' +
-          id + '", ["' +
-          classes.join('","') + '"], objRefFn, ' +
-          JSON.stringify(attributeList) + ', hashFunction, ' +
-          currentParsePoint.lineNumber + ', ' + currentParsePoint.characterNumber + ', "' +
-          @escapeCode(currentParsePoint.currentLine) + '", handleError));\n')*/
+        outputBuffer.appendToOutputBuffer("    html.push(haml.HamlRuntime.generateElementAttributes(context, \"" +
+          id + "\", [\"" +
+          StringUtils.join(classes, "\",\"") + "\"], objRefFn, " +
+          /*JSON.stringify(attributeList)*/ "null, hashFunction, " +
+          currentParsePoint.lineNumber + ", " + currentParsePoint.characterNumber + ", \"" +
+          escapeCode(currentParsePoint.currentLine) + "\", handleError));\n");
     }
 
     /**

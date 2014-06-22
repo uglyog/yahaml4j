@@ -35,6 +35,7 @@ public class Tokeniser {
 //        doctype:          /!!!/g,
     private static Pattern CONTINUELINE = Pattern.compile("\\|[ \\t]*\\n");
     private static Pattern FILTER = Pattern.compile(":\\w+");
+    private static Pattern CODE_IDENTIFIER = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
 
     private interface MatchedFn {
         public String match(String value);
@@ -47,6 +48,7 @@ public class Tokeniser {
         buffer = new SourceBuffer(source);
         lineNumber = 0;
         characterNumber = 0;
+        currentLine = null;
     }
 
     public Token getToken() {
@@ -81,51 +83,58 @@ public class Tokeniser {
                 }
             }
 
-            matchMultiCharToken(WHITESPACE, new Token(Token.TokenType.WS), null);
-            matchMultiCharToken(CONTINUELINE, new Token(Token.TokenType.CONTINUELINE), null);
-            matchMultiCharToken(ELEMENT, new Token(Token.TokenType.ELEMENT), new MatchedFn() {
+            matchMultiCharToken(WHITESPACE, Token.TokenType.WS, null);
+            matchMultiCharToken(CONTINUELINE, Token.TokenType.CONTINUELINE, null);
+            matchMultiCharToken(ELEMENT, Token.TokenType.ELEMENT, new MatchedFn() {
                 @Override
                 public String match(String value) {
                     return value.substring(1);
                 }
             });
+            matchMultiCharToken(CODE_IDENTIFIER, Token.TokenType.CODE_ID, null);
 
-        /*
-      @matchMultiCharToken(@tokenMatchers.idSelector, { idSelector: true, token: 'ID' }, (matched) -> matched.substring(1) )
-      @matchMultiCharToken(@tokenMatchers.classSelector, { classSelector: true, token: 'CLASS' }, (matched) -> matched.substring(1) )
-      @matchMultiCharToken(@tokenMatchers.identifier, { identifier: true, token: 'IDENTIFIER' })
-      @matchMultiCharToken(@tokenMatchers.doctype, { doctype: true, token: 'DOCTYPE' })
-      @matchMultiCharToken(@tokenMatchers.filter, { filter: true, token: 'FILTER' }, (matched) -> matched.substring(1) )
+                /*
+              @matchMultiCharToken(@tokenMatchers.idSelector, { idSelector: true, token: 'ID' }, (matched) -> matched.substring(1) )
+              @matchMultiCharToken(@tokenMatchers.classSelector, { classSelector: true, token: 'CLASS' }, (matched) -> matched.substring(1) )
+              @matchMultiCharToken(@tokenMatchers.identifier, { identifier: true, token: 'IDENTIFIER' })
+              @matchMultiCharToken(@tokenMatchers.doctype, { doctype: true, token: 'DOCTYPE' })
+              @matchMultiCharToken(@tokenMatchers.filter, { filter: true, token: 'FILTER' }, (matched) -> matched.substring(1) )
 
-      if !@token
-        str = @matchToken(@tokenMatchers.quotedString)
-        str = @matchToken(@tokenMatchers.quotedString2) if not str
-        if str
-          @token = { string: true, token: 'STRING', tokenString: str.substring(1, str.length - 1), matched: str }
-          @advanceCharsInBuffer(str.length)
+              if !@token
+                str = @matchToken(@tokenMatchers.quotedString)
+                str = @matchToken(@tokenMatchers.quotedString2) if not str
+                if str
+                  @token = { string: true, token: 'STRING', tokenString: str.substring(1, str.length - 1), matched: str }
+                  @advanceCharsInBuffer(str.length)
 
-      @matchMultiCharToken(@tokenMatchers.comment, { comment: true, token: 'COMMENT' })
-      @matchMultiCharToken(@tokenMatchers.escapeHtml, { escapeHtml: true, token: 'ESCAPEHTML' })
-      @matchMultiCharToken(@tokenMatchers.unescapeHtml, { unescapeHtml: true, token: 'UNESCAPEHTML' })
-      @matchMultiCharToken(@tokenMatchers.objectReference, { objectReference: true, token: 'OBJECTREFERENCE' }, (matched) ->
-        matched.substring(1, matched.length - 1)
-      )
+              @matchMultiCharToken(@tokenMatchers.comment, { comment: true, token: 'COMMENT' })
+              @matchMultiCharToken(@tokenMatchers.escapeHtml, { escapeHtml: true, token: 'ESCAPEHTML' })
+              @matchMultiCharToken(@tokenMatchers.unescapeHtml, { unescapeHtml: true, token: 'UNESCAPEHTML' })
+              @matchMultiCharToken(@tokenMatchers.objectReference, { objectReference: true, token: 'OBJECTREFERENCE' }, (matched) ->
+                matched.substring(1, matched.length - 1)
+              )
 
-      if !@token and @buffer and @buffer.charAt(@bufferIndex) == '{'
-        @matchJavascriptHash()
+              */
 
-      @matchSingleCharToken('(', { openBracket: true, token: 'OPENBRACKET' })
-      @matchSingleCharToken(')', { closeBracket: true, token: 'CLOSEBRACKET' })
-      @matchSingleCharToken('=', { equal: true, token: 'EQUAL' })
-      @matchSingleCharToken('/', { slash: true, token: 'SLASH' })
-      @matchSingleCharToken('!', { exclamation: true, token: 'EXCLAMATION' })
-      @matchSingleCharToken('-', { minus: true, token: 'MINUS' })
-      @matchSingleCharToken('&', { amp: true, token: 'AMP' })
-      @matchSingleCharToken('<', { lt: true, token: 'LT' })
-      @matchSingleCharToken('>', { gt: true, token: 'GT' })
-      @matchSingleCharToken('~', { tilde: true, token: 'TILDE' })
+            matchSingleCharToken('{', Token.TokenType.OPENBRACE);
+            matchSingleCharToken('}', Token.TokenType.CLOSEBRACE);
+            matchSingleCharToken(',', Token.TokenType.COMMA);
+            matchSingleCharToken(':', Token.TokenType.COLON);
 
-         */
+              /*
+
+              @matchSingleCharToken('(', { openBracket: true, token: 'OPENBRACKET' })
+              @matchSingleCharToken(')', { closeBracket: true, token: 'CLOSEBRACKET' })
+              @matchSingleCharToken('=', { equal: true, token: 'EQUAL' })
+              @matchSingleCharToken('/', { slash: true, token: 'SLASH' })
+              @matchSingleCharToken('!', { exclamation: true, token: 'EXCLAMATION' })
+              @matchSingleCharToken('-', { minus: true, token: 'MINUS' })
+              @matchSingleCharToken('&', { amp: true, token: 'AMP' })
+              @matchSingleCharToken('<', { lt: true, token: 'LT' })
+              @matchSingleCharToken('>', { gt: true, token: 'GT' })
+              @matchSingleCharToken('~', { tilde: true, token: 'TILDE' })
+
+                 */
 
             if (token == null) {
                 token = new Token(Token.TokenType.UNKNOWN, String.valueOf(buffer.peek()));
@@ -138,13 +147,25 @@ public class Tokeniser {
     }
 
     /**
+     * Match a single character token
+     */
+    private void matchSingleCharToken(char c, Token.TokenType tokenType) {
+        if (token == null && buffer.peek() == c) {
+            token = new Token(tokenType);
+            token.setTokenString(String.valueOf(c));
+            token.setMatched(String.valueOf(c));
+            advanceCharsInBuffer(1);
+        }
+    }
+
+    /**
      * Match a multi-character token
      */
-    private void matchMultiCharToken(Pattern matcher, Token token, MatchedFn fn) {
+    private void matchMultiCharToken(Pattern matcher, Token.TokenType tokenType, MatchedFn fn) {
         if (this.token == null) {
             String matched = buffer.matchRegex(matcher);
             if (matched != null) {
-                this.token = token;
+                this.token = new Token(tokenType);
                 this.token.setMatched(matched);
                 if (fn != null) {
                     this.token.setTokenString(fn.match(matched));
@@ -185,7 +206,7 @@ public class Tokeniser {
      * Initilise the line and character counters
      */
     private void initLine() {
-        if (StringUtils.isNotEmpty(currentLine)) {
+        if (StringUtils.isEmpty(currentLine)) {
             currentLine = getCurrentLine(0);
             lineNumber = 1;
             characterNumber = 0;
@@ -287,17 +308,23 @@ public class Tokeniser {
         }
     }
 
-    /*
+    /**
+     * Skips all characters until the provided character is reached, returning the skipped string
+     */
+    public String skipToChars(String ch) {
+        StringBuilder result = new StringBuilder();
+        while (!buffer.empty() && ch.indexOf(buffer.peek()) == -1) {
+            result.append(buffer.get());
+        }
 
-    ###
-    Match a single character token
-    ###
-    matchSingleCharToken: (ch, token) ->
-            if !@token and @buffer.charAt(@bufferIndex) == ch
-    @token = token
-    @token.tokenString = ch
-    @token.matched = ch
-    @advanceCharsInBuffer(1)
+        if (buffer.empty()) {
+            return null;
+        } else {
+            return result.toString();
+        }
+    }
+
+    /*
 
     ###
     Look ahead a number of tokens and return the token found
@@ -344,40 +371,6 @@ public class Tokeniser {
     ###
     isEolOrEof: ->
     @token.eol or @token.eof
-
-    ###
-    Match a Javascript Hash {...}
-    ###
-    matchJavascriptHash: ->
-    currentIndent = @calculateCurrentIndent()
-    i = @bufferIndex + 1
-    characterNumberStart = @characterNumber
-    lineNumberStart = @lineNumber
-    braceCount = 1
-            while i < @buffer.length and (braceCount > 1 or @buffer.charAt(i) isnt '}')
-    ch = @buffer.charAt(i)
-    chCode = @buffer.charCodeAt(i)
-    if ch == '{'
-    braceCount++
-    i++
-            else if ch == '}'
-    braceCount--
-    i++
-            else if chCode == 10 or chCode == 13
-    i++
-            else
-    i++
-            if i == @buffer.length
-    @characterNumber = characterNumberStart + 1
-    @lineNumber = lineNumberStart
-    throw @parseError('Error parsing attribute hash - Did not find a terminating "}"')
-    else
-    @token =
-    attributeHash: true
-    token: 'ATTRHASH'
-    tokenString: @buffer.substring(@bufferIndex, i + 1)
-    matched: @buffer.substring(@bufferIndex, i + 1)
-    @advanceCharsInBuffer(i - @bufferIndex + 1)
 
     ###
     Calculate the indent value of the current line

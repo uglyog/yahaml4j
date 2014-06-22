@@ -272,7 +272,18 @@
     }
   };
 
-  haml = {};
+  haml = {
+    hasValue: function(value) {
+      return (value != null) && value !== false;
+    },
+    attrValue: function(attr, value) {
+      if (attr === 'selected' || attr === 'checked' || attr === 'disabled') {
+        return attr;
+      } else {
+        return value;
+      }
+    }
+  };
   haml.HamlRuntime = HamlRuntime;
 
   if ((typeof module !== "undefined" && module !== null ? module.exports : void 0) != null) {

@@ -31,7 +31,8 @@ public interface HamlGenerator {
 
     void closeOffFunctionBlock(Tokeniser tokeniser);
 
-    void generateCodeForDynamicAttributes(String id, List<String> classes, Map<String, String> attributeList, String attributeHash, String objectRef, ParsePoint currentParsePoint);
+    void generateCodeForDynamicAttributes(String id, List<String> classes, Map<String, String> attributeList,
+                                          Map<String, String> attributeHash, String objectRef, ParsePoint currentParsePoint);
 
     void appendTextContents(String text, boolean shouldInterpolate, ParsePoint currentParsePoint, ProcessOptions options);
 }

@@ -153,20 +153,21 @@ haml.filters = filters
     /**
      * TEMPLATELINE -> ([ELEMENT][IDSELECTOR][CLASSSELECTORS][ATTRIBUTES] [SLASH|CONTENTS])|(!CONTENTS) (EOL|EOF)
      */
-    private void _templateLine(Tokeniser tokeniser, List<Element> elementStack, int indent, HamlGenerator generator, HamlOptions options) {
+    private void _templateLine(Tokeniser tokeniser, List<Element> elementStack, int indent, HamlGenerator generator,
+                               HamlOptions options) {
 
         if (tokeniser.getToken().type != Token.TokenType.EOL) {
             _closeElements(indent, elementStack, tokeniser, generator);
         }
 
         String identifier = _element(tokeniser);
-        String id = null; // @_idSelector(tokeniser)
+        String id = ""; // @_idSelector(tokeniser)
         List<String> classes = Collections.emptyList(); // @_classSelector(tokeniser)
         String objectRef = null; // @_objectReference(tokeniser)
         Map<String, String> attrList = Collections.emptyMap(); // @_attributeList(tokeniser, options)
 
         ParsePoint currentParsePoint = tokeniser.currentParsePoint();
-        String attributesHash = null; // @_attributeHash(tokeniser)
+        Map<String, String> attributesHash = _attributeHash(tokeniser, options);
 
         TagOptions tagOptions = new TagOptions();
         tagOptions.selfClosingTag = false;
@@ -234,6 +235,51 @@ haml.filters = filters
 
     }
 
+    private Map<String, String> _attributeHash(Tokeniser tokeniser, HamlOptions options) {
+        Map<String, String> hash = new HashMap<String, String>();
+        // HASH -> '{ WS* HASH_ENTRY ( ',' WS* HASH_ENTRY )*  '}'
+        if (tokeniser.getToken().type == Token.TokenType.OPENBRACE) {
+            tokeniser.getNextToken();
+            _whitespace(tokeniser);
+            _hashEntry(hash, tokeniser, null);
+            while (tokeniser.getToken().type == Token.TokenType.COMMA) {
+                tokeniser.getNextToken();
+                _hashEntry(hash, tokeniser, options);
+            }
+            if (tokeniser.getToken().type != Token.TokenType.CLOSEBRACE) {
+                _handleError(options, null, tokeniser,
+                    new RuntimeException(tokeniser.parseError("Expected a closing brace (}) to end an attribute hash")));
+            }
+            tokeniser.getNextToken();
+        }
+        return hash;
+    }
+
+    private void _hashEntry(Map<String, String> hash, Tokeniser tokeniser, HamlOptions options) {
+        // HASH_ENTRY -> IDENTIFIER WS* ':' WS* !(',' '}')
+        if (tokeniser.getToken().type != Token.TokenType.CODE_ID) {
+            _handleError(options, null, tokeniser,
+                new RuntimeException(tokeniser.parseError("Hash keys must be normal identifiers")));
+        } else {
+            String id = tokeniser.getToken().getTokenString();
+            tokeniser.getNextToken();
+            _whitespace(tokeniser);
+            if (tokeniser.getToken().type != Token.TokenType.COLON) {
+                _handleError(options, null, tokeniser,
+                    new RuntimeException(tokeniser.parseError("Expected a colon (:) after a Hash key")));
+            } else {
+                String value = tokeniser.skipToChars("},");
+                if (value == null) {
+                    _handleError(options, null, tokeniser,
+                        new RuntimeException(tokeniser.parseError("Expected a closing brace (}) to end an attribute hash or a comma (,) to continue onto another entry")));
+                } else {
+                    hash.put(id, value);
+                    tokeniser.getNextToken();
+                }
+            }
+        }
+    }
+
     private void _eolOrEof(Tokeniser tokeniser) {
         if (tokeniser.getToken().type == Token.TokenType.EOL || tokeniser.getToken().type == Token.TokenType.CONTINUELINE) {
             tokeniser.getNextToken();
@@ -254,7 +300,7 @@ haml.filters = filters
 
     private void _openElement(ParsePoint currentParsePoint, int indent, String identifier, String id,
                               List<String> classes, String objectRef, Map<String, String> attributeList,
-                              String attributeHash, List<Element> elementStack, TagOptions tagOptions, HamlGenerator generator) {
+                              Map<String, String> attributeHash, List<Element> elementStack, TagOptions tagOptions, HamlGenerator generator) {
         String element = identifier;
         if (StringUtils.isEmpty(element)) {
             element = "div";
@@ -269,7 +315,7 @@ haml.filters = filters
             generator.getOutputBuffer().append(HamlRuntime.indentText(indent));
         }
         generator.getOutputBuffer().append("<" + element);
-        if (StringUtils.isNotEmpty(attributeHash) || StringUtils.isNotEmpty(objectRef)) {
+        if (!attributeHash.isEmpty() || StringUtils.isNotEmpty(objectRef)) {
             generator.generateCodeForDynamicAttributes(id, classes, attributeList, attributeHash, objectRef, currentParsePoint);
         } else {
             generator.getOutputBuffer().append(HamlRuntime.generateElementAttributes(null, id, classes, null, attributeList, null,
@@ -479,13 +525,6 @@ haml.filters = filters
         elementStack[indent] = fnBlock: true
       else if generator.lineMatchesStartBlock(line)
         elementStack[indent] = block: true
-
-  _attributeHash: (tokeniser) ->
-    attr = ''
-    if tokeniser.token.attributeHash
-      attr = tokeniser.token.tokenString
-      tokeniser.getNextToken()
-    attr
 
   _objectReference: (tokeniser) ->
     attr = ''
