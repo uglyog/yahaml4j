@@ -52,11 +52,13 @@ public class HamlRuntime {
             combineAttributes(attributes, "class", classes);
         }
 
-        /*
-        if attrList?
-          attributes = @combineAttributes(attributes, attr, value) for own attr, value of attrList
+        if (attributeList != null) {
+            for (Map.Entry<String, String> attr : attributeList.entrySet()) {
+                combineAttributes(attributes, attr.getKey(), attr.getValue());
+            }
+        }
 
-        if objRefFn?
+        /*if objRefFn?
           try
             object = objRefFn.call(context, context)
             if object?

@@ -14,9 +14,9 @@ public class Tokeniser {
     private static Pattern ELEMENT = Pattern.compile("%[a-zA-Z][a-zA-Z0-9]*");
     private static Pattern IDSELECTOR = Pattern.compile("#[a-zA-Z0-9_\\-]+");
     private static Pattern CLASSSELECTOR = Pattern.compile("\\.[a-zA-Z0-9_\\-]+");
-//        identifier:       /[a-zA-Z][a-zA-Z0-9\-]* /g,
-//        quotedString:     /[\'][^\'\n]*[\']/g,
-//        quotedString2:    /[\"][^\"\n]*[\"]/g,
+    private static Pattern HTMLIDENTIFIER = Pattern.compile("[a-zA-Z][a-zA-Z0-9\\-]*");
+    private static Pattern QUOTEDSTRING = Pattern.compile("'[^'\\n]*'");
+    private static Pattern QUOTEDSTRING2 = Pattern.compile("\"[^\"\\n]*\"");
 //        comment:          /\-#/g,
 //        escapeHtml:       /\&=/g,
 //        unescapeHtml:     /\!=/g,
@@ -83,7 +83,7 @@ public class Tokeniser {
     }
 
     public enum Mode {
-        ATTRHASH
+        ATTRLIST, ATTRHASH
     }
 
     private interface MatchedFn {
@@ -134,40 +134,51 @@ public class Tokeniser {
 
             matchMultiCharToken(WHITESPACE, Token.TokenType.WS, null);
             matchMultiCharToken(CONTINUELINE, Token.TokenType.CONTINUELINE, null);
-            matchMultiCharToken(ELEMENT, Token.TokenType.ELEMENT, new MatchedFn() {
-                @Override
-                public String match(String value) {
-                    return value.substring(1);
-                }
-            });
-            matchMultiCharToken(IDSELECTOR, Token.TokenType.IDSELECTOR, new MatchedFn() {
-                            @Override
-                            public String match(String value) {
-                    return value.substring(1);
-                }
-            });
-            matchMultiCharToken(CLASSSELECTOR, Token.TokenType.CLASSSELECTOR, new MatchedFn() {
-                                        @Override
-                                        public String match(String value) {
-                    return value.substring(1);
-                }
-            });
+
+            if (this.mode == null) {
+                matchMultiCharToken(ELEMENT, Token.TokenType.ELEMENT, new MatchedFn() {
+                    @Override
+                    public String match(String value) {
+                        return value.substring(1);
+                    }
+                });
+                matchMultiCharToken(IDSELECTOR, Token.TokenType.IDSELECTOR, new MatchedFn() {
+                    @Override
+                    public String match(String value) {
+                        return value.substring(1);
+                    }
+                });
+                matchMultiCharToken(CLASSSELECTOR, Token.TokenType.CLASSSELECTOR, new MatchedFn() {
+                    @Override
+                    public String match(String value) {
+                        return value.substring(1);
+                    }
+                });
+            }
 
             if (this.mode == Mode.ATTRHASH) {
                 matchMultiCharToken(CODE_IDENTIFIER, Token.TokenType.CODE_ID, null);
             }
 
+            if (this.mode == Mode.ATTRLIST) {
+                matchMultiCharToken(HTMLIDENTIFIER, Token.TokenType.HTMLIDENTIFIER, null);
+
+                if (token == null) {
+                    String str = matchToken(QUOTEDSTRING);
+                    if (str == null) {
+                        str = matchToken(QUOTEDSTRING2);
+                    }
+                    if (str != null) {
+                        token = new Token(Token.TokenType.STRING, str);
+                        token.setTokenString(str.substring(1, str.length() - 1));
+                        advanceCharsInBuffer(str.length());
+                    }
+                }
+            }
+
                 /*
-              @matchMultiCharToken(@tokenMatchers.identifier, { identifier: true, token: 'IDENTIFIER' })
               @matchMultiCharToken(@tokenMatchers.doctype, { doctype: true, token: 'DOCTYPE' })
               @matchMultiCharToken(@tokenMatchers.filter, { filter: true, token: 'FILTER' }, (matched) -> matched.substring(1) )
-
-              if !@token
-                str = @matchToken(@tokenMatchers.quotedString)
-                str = @matchToken(@tokenMatchers.quotedString2) if not str
-                if str
-                  @token = { string: true, token: 'STRING', tokenString: str.substring(1, str.length - 1), matched: str }
-                  @advanceCharsInBuffer(str.length)
 
               @matchMultiCharToken(@tokenMatchers.comment, { comment: true, token: 'COMMENT' })
               @matchMultiCharToken(@tokenMatchers.escapeHtml, { escapeHtml: true, token: 'ESCAPEHTML' })
@@ -183,12 +194,12 @@ public class Tokeniser {
             matchSingleCharToken(',', Token.TokenType.COMMA);
             matchSingleCharToken(':', Token.TokenType.COLON);
             matchSingleCharToken('/', Token.TokenType.SLASH);
+            matchSingleCharToken('(', Token.TokenType.OPENBRACKET);
+            matchSingleCharToken(')', Token.TokenType.CLOSEBRACKET);
+            matchSingleCharToken('=', Token.TokenType.EQUAL);
 
               /*
 
-              @matchSingleCharToken('(', { openBracket: true, token: 'OPENBRACKET' })
-              @matchSingleCharToken(')', { closeBracket: true, token: 'CLOSEBRACKET' })
-              @matchSingleCharToken('=', { equal: true, token: 'EQUAL' })
               @matchSingleCharToken('!', { exclamation: true, token: 'EXCLAMATION' })
               @matchSingleCharToken('-', { minus: true, token: 'MINUS' })
               @matchSingleCharToken('&', { amp: true, token: 'AMP' })

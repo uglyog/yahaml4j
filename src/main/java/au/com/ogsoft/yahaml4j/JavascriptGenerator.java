@@ -2,6 +2,8 @@ package au.com.ogsoft.yahaml4j;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.json.JSONStringer;
+import org.json.JSONWriter;
 
 import java.util.List;
 import java.util.Map;
@@ -116,10 +118,16 @@ public class JavascriptGenerator extends BaseCodeGenerator {
 //        else
 //          @outputBuffer.appendToOutputBuffer('    objRefFn = null;\n');
 
+        JSONWriter json = new JSONStringer().object();
+        for(Map.Entry<String, String> attr: attributeList.entrySet()) {
+            json.key(attr.getKey()).value(attr.getValue());
+        }
+        String attrbuteListJson = json.endObject().toString();
+
         outputBuffer.appendToOutputBuffer("    html.push(haml.HamlRuntime.generateElementAttributes(context, \"" +
           id + "\", [\"" +
           StringUtils.join(classes, "\",\"") + "\"], objRefFn, " +
-          /*JSON.stringify(attributeList)*/ "null, hashFunction, " +
+          attrbuteListJson + ", hashFunction, " +
           currentParsePoint.lineNumber + ", " + currentParsePoint.characterNumber + ", \"" +
           escapeCode(currentParsePoint.currentLine) + "\", handleError));\n");
     }

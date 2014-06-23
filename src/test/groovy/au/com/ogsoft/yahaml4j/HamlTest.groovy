@@ -71,10 +71,9 @@ public class HamlTest {
             "    %p{id: 'test2', " +
             "        class: \"blah\", name: null, test: false, checked: false, selected: true} This is some text\n" +
             "      This is some text\n" +
-            "    This is some div text\n" /*+
-            "    %label(for = \"a\"){for: [\"b\", \"c\"]}/\n"*/ +
+            "    This is some div text\n" +
+            "    %label(for = \"a\"){for: [\"b\", \"c\"]}/\n" +
             "    %div{id: ['test', 1], class: [model.name, \"class2\"], for: \"something\"}\n", null)
-        println haml
         String result = runScript(haml, "{ model: { name: 'class1' } }")
         assertThat result, is(
             "<h1>\n" +
@@ -84,7 +83,7 @@ public class HamlTest {
             "      This is some text\n" +
             "    </p>\n" +
             "    This is some div text\n" +
-//            "    <label for=\"a-b-c\"/>\n" +
+            "    <label for=\"a-b-c\"/>\n" +
             "    <div id=\"test-1\" for=\"something\" class=\"class1 class2\">\n" +
             "    </div>\n" +
             "  </div>\n" +
@@ -102,7 +101,7 @@ public class HamlTest {
                     "        %h5", null)
             fail("Should have thrown an exception")
         } catch (RuntimeException e) {
-            assertThat e.message, containsString("at line 3 and character 11:\n    %h3{%h3 %h4}\n----------^")
+            assertThat e.message, containsString("at line 3 and character 9:\n    %h3{%h3 %h4}\n--------^")
         }
     }
 
@@ -121,33 +120,45 @@ public class HamlTest {
         }
     }
 
-//    @Test
-//    public void "template with () attributes"() {
-//        def haml = haml.compileHaml("attributes",
-//            "'%h1\\n' +\n" +
-//            "        '  %div(id = \"test\")\\n' +\n" +
-//            "        '    %p(id=test2 class=\"blah\"\\n selected=\"selected\") This is some text\\n' +\n" +
-//            "        '      This is some text\\n' +\n" +
-//            "        '    This is some div text\\n' +\n" +
-//            "        '    %div(id=test){id: 1, class: [model.name, \"class2\"]}\\n' +\n" +
-//            "        '    %a(href=\"#\" data-key=\"MOD_DESC\")/'", null)
-//        println haml
-//        String result = runScript(haml, "{ model: { name: 'class1' } }")
-//        assertThat result, is(
-//            "\n" +
-//            "<h1>\n" +
-//            "  <div id=\"test\">\n" +
-//            "    <p id=\"test2\" class=\"blah\" selected=\"selected\">\n" +
-//            "      This is some text\n" +
-//            "      This is some text\n" +
-//            "    </p>\n" +
-//            "    This is some div text\n" +
-//            "    <div id=\"test-1\" class=\"class1 class2\">\n" +
-//            "    </div>\n" +
-//            "    <a href=\"#\" data-key=\"MOD_DESC\"/>\n" +
-//            "  </div>\n" +
-//            "</h1>\n")
-//    }
+    @Test
+    public void "invalid template 3"() {
+        try {
+            def haml = haml.compileHaml("invalid",
+                    "%a#back(href=\"#\" class=\"button back)\n" +
+                    "%span Back\n" +
+                    "%a#continue(href=\"#\" class=\"button continue\")\n" +
+                    "%span Save and Continue", null)
+            fail("Should have thrown an exception")
+        } catch (RuntimeException e) {
+            assertThat e.message, containsString("at line 1 and character 24:\n%a#back(href=\"#\" class=\"button back)\n-----------------------^")
+        }
+    }
+
+    @Test
+    public void "template with () attributes"() {
+        def haml = haml.compileHaml("attributes",
+            "%h1\n" +
+            "  %div(id = \"test\")\n" +
+            "    %p(id=test2 class=\"blah\"\n selected=\"selected\") This is some text\n" +
+            "      This is some text\n" +
+            "    This is some div text\n" +
+            "    %div(id=test){id: 1, class: [model.name, \"class2\"]}\n" +
+            "    %a(href=\"#\" data-key=\"MOD_DESC\")/", null)
+        String result = runScript(haml, "{ model: { name: 'class1' } }")
+        assertThat result, is(
+            "<h1>\n" +
+            "  <div id=\"test\">\n" +
+            "    <p id=\"test2\" selected=\"selected\" class=\"blah\">\n" +
+            "      This is some text\n" +
+            "      This is some text\n" +
+            "    </p>\n" +
+            "    This is some div text\n" +
+            "    <div id=\"test-1\" class=\"class1 class2\">\n" +
+            "    </div>\n" +
+            "    <a data-key=\"MOD_DESC\" href=\"#\"/>\n" +
+            "  </div>\n" +
+            "</h1>\n")
+    }
 
     @Test
     public void "template with id and class selectors"() {
@@ -244,17 +255,6 @@ public class HamlTest {
     }
 
     /*
-  describe 'invalid template', () ->
-
-    beforeEach () ->
-        '<script type="text/template" id="invalid3">' +
-        '%a#back(href="#" class="button back)\n' +
-        '%span Back\n' +
-        '%a#continue(href="#" class="button continue")\n' +
-        '%span Save and Continue\n' +
-        '</script>'
-      )
-
   describe 'template with unescaped HTML', () ->
 
     beforeEach () ->

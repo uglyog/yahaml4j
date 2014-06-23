@@ -1,5 +1,6 @@
 package au.com.ogsoft.yahaml4j;
 
+import org.apache.commons.collections4.keyvalue.DefaultMapEntry;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -156,7 +157,7 @@ class Haml {
         String id = _idSelector(tokeniser);
         List<String> classes = _classSelector(tokeniser);
         String objectRef = null; // @_objectReference(tokeniser)
-        Map<String, String> attrList = Collections.emptyMap(); // @_attributeList(tokeniser, options)
+        Map<String, String> attrList = _attributeList(tokeniser, options);
 
         ParsePoint currentParsePoint = tokeniser.currentParsePoint();
         Map<String, String> attributesHash = _attributeHash(tokeniser, options);
@@ -226,6 +227,63 @@ class Haml {
                 currentParsePoint.lineNumber, currentParsePoint.characterNumber,
                 currentParsePoint.currentLine, "A self-closing tag can not have any contents")));
         }
+    }
+
+    // ATTRIBUTES -> ( ATTRIBUTE* )
+    private Map<String, String> _attributeList(Tokeniser tokeniser, HamlOptions options) {
+        Map<String, String> attrList = new HashMap<String, String>();
+
+        if (tokeniser.getToken().type == Token.TokenType.OPENBRACKET) {
+            tokeniser.setMode(Tokeniser.Mode.ATTRLIST);
+            tokeniser.getNextToken();
+            while (tokeniser.getToken().type != Token.TokenType.CLOSEBRACKET) {
+                Map.Entry<String, String> attr = _attribute(tokeniser, options);
+                if (attr != null) {
+                    attrList.put(attr.getKey(), attr.getValue());
+                } else {
+                    if (tokeniser.getToken().type == Token.TokenType.WS || tokeniser.getToken().type == Token.TokenType.EOL) {
+                        tokeniser.getNextToken();
+                    } else if (tokeniser.getToken().type != Token.TokenType.CLOSEBRACKET && tokeniser.getToken().type != Token.TokenType.HTMLIDENTIFIER) {
+                        tokeniser.clearMode();
+                        _handleError(options, null, tokeniser, new RuntimeException(
+                                tokeniser.parseError("Expecting either an attribute name to continue the attributes or a closing " +
+                                        "bracket to end")));
+                        return attrList;
+                    }
+                }
+            }
+            tokeniser.getNextToken();
+        }
+
+        tokeniser.clearMode();
+        return attrList;
+    }
+
+    // ATTRIBUTE -> IDENTIFIER WS* = WS* STRING
+    private Map.Entry<String, String> _attribute(Tokeniser tokeniser, HamlOptions options) {
+        Map.Entry<String, String> attr = null;
+
+        if (tokeniser.getToken().type == Token.TokenType.HTMLIDENTIFIER) {
+            String name = tokeniser.getToken().getTokenString();
+            tokeniser.getNextToken();
+            _whitespace(tokeniser);
+            if (tokeniser.getToken().type != Token.TokenType.EQUAL) {
+                _handleError(options, null, tokeniser,
+                        new RuntimeException(tokeniser.parseError("Expected equals \"=\" after attribute name")));
+                return null;
+            }
+            tokeniser.getNextToken();
+            _whitespace(tokeniser);
+            if (tokeniser.getToken().type != Token.TokenType.HTMLIDENTIFIER && tokeniser.getToken().type != Token.TokenType.STRING) {
+                _handleError(options, null, tokeniser,
+                        new RuntimeException(tokeniser.parseError("Expected a quoted string or an identifier for the attribute value")));
+                return null;
+            }
+            attr = new DefaultMapEntry<String, String>(name, tokeniser.getToken().getTokenString());
+            tokeniser.getNextToken();
+        }
+
+        return attr;
     }
 
     private boolean _tagHasContents(int indent, Tokeniser tokeniser) {
@@ -562,45 +620,6 @@ class Haml {
     if tokeniser.token.objectReference
       attr = tokeniser.token.tokenString
       tokeniser.getNextToken()
-    attr
-
-  # ATTRIBUTES -> ( ATTRIBUTE* )
-  _attributeList: (tokeniser, options) ->
-    attrList = {}
-    if tokeniser.token.openBracket
-      tokeniser.getNextToken()
-      until tokeniser.token.closeBracket
-        attr = haml._attribute(tokeniser)
-        if attr
-          attrList[attr.name] = attr.value
-        else
-          if tokeniser.token.ws or tokeniser.token.eol
-            tokeniser.getNextToken()
-          else if !tokeniser.token.closeBracket and !tokeniser.token.identifier
-            @_handleError(options, null, tokeniser, tokeniser.parseError("Expecting either an attribute name to continue the attibutes or a closing " +
-              "bracket to end"))
-            return attrList
-      tokeniser.getNextToken()
-    attrList
-
-  # ATTRIBUTE -> IDENTIFIER WS* = WS* STRING
-  _attribute: (tokeniser) ->
-    attr = null
-
-    if tokeniser.token.identifier
-      name = tokeniser.token.tokenString
-      tokeniser.getNextToken()
-      haml._whitespace(tokeniser)
-      throw tokeniser.parseError("Expected "=" after attribute name") unless tokeniser.token.equal
-      tokeniser.getNextToken();
-      haml._whitespace(tokeniser)
-      if !tokeniser.token.string and !tokeniser.token.identifier
-        throw tokeniser.parseError("Expected a quoted string or an identifier for the attribute value")
-      attr =
-        name: name
-        value: tokeniser.token.tokenString
-      tokeniser.getNextToken()
-
     attr
 
      */
