@@ -197,17 +197,12 @@ public class Tokeniser {
             matchSingleCharToken('(', Token.TokenType.OPENBRACKET);
             matchSingleCharToken(')', Token.TokenType.CLOSEBRACKET);
             matchSingleCharToken('=', Token.TokenType.EQUAL);
-
-              /*
-
-              @matchSingleCharToken('!', { exclamation: true, token: 'EXCLAMATION' })
-              @matchSingleCharToken('-', { minus: true, token: 'MINUS' })
-              @matchSingleCharToken('&', { amp: true, token: 'AMP' })
-              @matchSingleCharToken('<', { lt: true, token: 'LT' })
-              @matchSingleCharToken('>', { gt: true, token: 'GT' })
-              @matchSingleCharToken('~', { tilde: true, token: 'TILDE' })
-
-                 */
+            matchSingleCharToken('!', Token.TokenType.EXCLAMATION);
+            matchSingleCharToken('-', Token.TokenType.MINUS);
+            matchSingleCharToken('&', Token.TokenType.AMP);
+            matchSingleCharToken('<', Token.TokenType.LT);
+            matchSingleCharToken('>', Token.TokenType.GT);
+            matchSingleCharToken('~', Token.TokenType.TILDE);
 
             if (token == null) {
                 token = new Token(Token.TokenType.UNKNOWN, String.valueOf(buffer.peek()));

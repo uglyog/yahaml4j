@@ -172,12 +172,14 @@ class Haml {
             tagOptions.selfClosingTag = true;
             tokeniser.getNextToken();
         }
-        /*if tokeniser.token.gt and lineHasElement
-          tagOptions.outerWhitespace = false
-          tokeniser.getNextToken()
-        if tokeniser.token.lt and lineHasElement
-          tagOptions.innerWhitespace = false
-          tokeniser.getNextToken()*/
+        if (tokeniser.getToken().type == Token.TokenType.GT && lineHasElement) {
+            tagOptions.outerWhitespace = false;
+            tokeniser.getNextToken();
+        }
+        if (tokeniser.getToken().type == Token.TokenType.LT && lineHasElement) {
+            tagOptions.innerWhitespace = false;
+            tokeniser.getNextToken();
+        }
 
         if (lineHasElement) {
             if (!tagOptions.selfClosingTag) {
@@ -198,15 +200,16 @@ class Haml {
         else*/
           String contents = "";
           boolean shouldInterpolate = false;
-          /*if tokeniser.token.exclamation
-            tokeniser.getNextToken()
-            contents = tokeniser.skipToEOLorEOF()
-          else*/
-            contents = tokeniser.skipToEOLorEOF();
-            if (contents.startsWith("\\")) {
-                contents = contents.substring(1);
-            }
-            shouldInterpolate = true;
+          if (tokeniser.getToken().type == Token.TokenType.EXCLAMATION) {
+              tokeniser.getNextToken();
+              contents = tokeniser.skipToEOLorEOF();
+          } else {
+              contents = tokeniser.skipToEOLorEOF();
+              if (contents.startsWith("\\")) {
+                  contents = contents.substring(1);
+              }
+              shouldInterpolate = true;
+          }
 
           hasContents = StringUtils.isNotEmpty(contents);
           String indentText = "";
@@ -478,7 +481,7 @@ class Haml {
     }
 
     private boolean _parentInnerWhitespace(List<Element> elementStack, int indent) {
-        return indent == 0 || (elementStack.get(indent - 1) == null || elementStack.get(indent - 1).tagOptions == null
+        return indent == 0 || indent >= elementStack.size() || (elementStack.get(indent - 1) == null || elementStack.get(indent - 1).tagOptions == null
             || elementStack.get(indent - 1).tagOptions.innerWhitespace);
     }
 

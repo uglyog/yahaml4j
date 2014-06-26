@@ -244,6 +244,28 @@ public class HamlTest {
             "</div>\n")
     }
 
+    @Test
+    public void "template with unescaped HTML"() {
+        def haml = haml.compileHaml("unescaped",
+            "%h1 !<div>\n" +
+            "  !#test.test\n" +
+            "    !%p#test.blah{id: 2, class: \"test\"} This is some text\n" +
+            "      !This is some text\n" +
+            "!    This is some <div> text\n" +
+            "!    <div class=\"class1 class2\"></div>\n", null)
+        String result = runScript(haml)
+        assertThat result, is(
+            "<h1>\n" +
+            "  <div>\n" +
+            "  #test.test\n" +
+            "    %p#test.blah{id: 2, class: \"test\"} This is some text\n" +
+            "      This is some text\n" +
+            "</h1>\n" +
+            "    This is some <div> text\n" +
+            "    <div class=\"class1 class2\"></div>\n"
+        )
+    }
+
     private Object runScript(String haml, String context = "{}") {
         ScriptEngineManager factory = new ScriptEngineManager()
         ScriptEngine engine = factory.getEngineByName("JavaScript")
@@ -255,29 +277,6 @@ public class HamlTest {
     }
 
     /*
-  describe 'template with unescaped HTML', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="unescaped">' +
-        '%h1 !<div>\n' +
-        '  !#test.test\n' +
-        '    !%p#test.blah{id: 2, class: "test"} This is some text\n' +
-        '      !This is some text\n' +
-        '!    This is some <div> text\n' +
-        '!    <div class="class1 class2"></div>\n' +
-        '</script>')
-
-    it 'should render the correct html', () ->
-      html = haml.compileHaml('unescaped')()
-      expect(html).toEqual(
-        '<h1>\n' +
-        '  <div>\n' +
-        '  #test.test\n' +
-        '    %p#test.blah{id: 2, class: "test"} This is some text\n' +
-        '      This is some text\n' +
-        '    This is some <div> text\n' +
-        '    <div class="class1 class2"></div>\n' +
-        '</h1>\n')
 
   describe 'template with Javascript evaluation', () ->
 
