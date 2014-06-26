@@ -266,6 +266,42 @@ public class HamlTest {
         )
     }
 
+    @Test
+    public void "template with comments"() {
+        def haml = haml.compileHaml("comments",
+            ".main\n" +
+            "  / This is a comment\n" +
+            "  /\n" +
+            "    %span\n" +
+            "      = errorTitle\n" +
+            "  -# .clear\n" +
+            "      %span= errorHeading\n" +
+            "  -#  = var label = \"Calculation: \"; return label + (1 + 2 * 3)\n" +
+            "  -#  = [\"hi\", \"there\", \"reader!\"]\n" +
+            "  -#  = evilScript \n" +
+            "  /[if IE]  \n" +
+            "    %a(href = \"http://www.mozilla.com/en-US/firefox/\" )\n" +
+            "      %h1 Get Firefox\n", null)
+        String result = runScript(haml, "{errorTitle: \"An error's a terrible thing\"}")
+        assertThat result, is(
+            "<div class=\"main\">\n" +
+            "  <!-- This is a comment  -->\n" +
+            "  <!--\n" +
+            "    <span>\n" +
+            "      = errorTitle\n" +
+            "    </span>\n" +
+            "  -->\n" +
+            "  <!--[if IE]  >\n" +
+            "    <a href=\"http://www.mozilla.com/en-US/firefox/\">\n" +
+            "      <h1>\n" +
+            "        Get Firefox\n" +
+            "      </h1>\n" +
+            "    </a>\n" +
+            "  <![endif]-->\n" +
+            "</div>\n"
+        )
+    }
+
     private Object runScript(String haml, String context = "{}") {
         ScriptEngineManager factory = new ScriptEngineManager()
         ScriptEngine engine = factory.getEngineByName("JavaScript")
@@ -336,61 +372,6 @@ public class HamlTest {
             '    <script>alert("I\'m evil!");</script>\n' +
             '  </div>\n' +
             '</div>\n')
-
-  describe 'template with Coffee evaluation', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="evaluation">\n' +
-        '.box.error\n' +
-        '  %span\n' +
-        '    = @errorTitle\n' +
-        '  .clear\n' +
-        '    %span= @errorHeading\n' +
-        '    = label = "Calculation: "; label + (1 + 2 * 3)\n' +
-        '    = ["hi", "there", "reader!"]\n' +
-        '    = @evilScript \n' +
-        '    %span&= @errorHeading\n' +
-        '    &= label = "Calculation: "; label + (1 + 2 * 3)\n' +
-        '    &= ["hi", "there", "reader!"]\n' +
-        '    &= @evilScript \n' +
-        '    %span!= @errorHeading\n' +
-        '    != label = "Calculation: "; label + (1 + 2 * 3)\n' +
-        '    != ["hi", "there", "reader!"]\n' +
-        '    != @evilScript \n' +
-        '</script>')
-
-    it 'should render the correct html', () ->
-      html = haml.compileCoffeeHaml('evaluation').call({
-          errorTitle: "Error Title",
-          errorHeading: "Error Heading <div>div text</div>",
-          evilScript: '<script>alert("I\'m evil!");</script>'
-        })
-      expect(html).toEqual(
-        '\n<div class="box error">\n' +
-        '  <span>\n' +
-        '    Error Title\n' +
-        '  </span>\n' +
-        '  <div class="clear">\n' +
-        '    <span>\n' +
-        '      Error Heading &lt;div&gt;div text&lt;/div&gt;\n' +
-        '    </span>\n' +
-        '    Calculation: 7\n' +
-        '    hi,there,reader!\n' +
-        '    &lt;script&gt;alert(&quot;I&#39;m evil!&quot;);&lt;/script&gt;\n' +
-        '    <span>\n' +
-        '      Error Heading &lt;div&gt;div text&lt;/div&gt;\n' +
-        '    </span>\n' +
-        '    Calculation: 7\n' +
-        '    hi,there,reader!\n' +
-        '    &lt;script&gt;alert(&quot;I&#39;m evil!&quot;);&lt;/script&gt;\n' +
-        '    <span>\n' +
-        '      Error Heading <div>div text</div>\n' +
-        '    </span>\n' +
-        '    Calculation: 7\n' +
-        '    hi,there,reader!\n' +
-        '    <script>alert("I\'m evil!");</script>\n' +
-        '  </div>\n' +
-        '</div>\n')
 
   describe 'template with Javascript code lines', () ->
 
@@ -483,136 +464,6 @@ public class HamlTest {
             '  <span someattribute="hello world">\n' +
             '  </span>\n' +
             '</div>\n')
-
-  describe 'template with Coffeescript code lines', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="evaluation">\n' +
-        '.main\n' +
-        '  - foo = "hello"\n' +
-        '  - foo += " world"\n' +
-        '  %span\n' +
-        '    %span/\n' +
-        '      %span/\n' +
-        '    = foo\n' +
-        '</script>\n' +
-        '<script type="text/template" id="evaluation-with-loops">\n' +
-        '.main\n' +
-        '  - for option in ["Option 1", "Option 2", "Option 3"]\n' +
-        '    %span= option\n' +
-        '  - for i in [0...5]\n' +
-        '    %p= i\n' +
-        '</script>' +
-        '<script type="text/template" id="evaluation-using-context">\n' +
-        '.main\n' +
-        '  - foo = @model.foo\n' +
-        '  - foo += " world"\n' +
-        '  %span\n' +
-        '    = foo\n' +
-        '</script>' +
-        '<script type="text/template" id="attribute-hash-evaluation-using-outer-scope">\n' +
-        '.main\n' +
-        '  - foo = "hello world"\n' +
-        '  %span{someattribute: foo}\n' +
-        '</script>')
-
-    it 'should render the correct html using locally defined variables', () ->
-      html = haml.compileCoffeeHaml('evaluation')()
-      expect(html).toEqual(
-        '\n<div class="main">\n' +
-        '  <span>\n' +
-        '    <span/>\n' +
-        '      <span/>\n' +
-        '    hello world\n' +
-        '  </span>\n' +
-        '</div>\n')
-
-    it 'should render the correct html when the template has loops', () ->
-      html = haml.compileCoffeeHaml('evaluation-with-loops')()
-      expect(html).toEqual(
-        '\n<div class="main">\n' +
-        '    <span>\n' +
-        '      Option 1\n' +
-        '    </span>\n' +
-        '    <span>\n' +
-        '      Option 2\n' +
-        '    </span>\n' +
-        '    <span>\n' +
-        '      Option 3\n' +
-        '    </span>\n' +
-        '    <p>\n' +
-        '      0\n' +
-        '    </p>\n' +
-        '    <p>\n' +
-        '      1\n' +
-        '    </p>\n' +
-        '    <p>\n' +
-        '      2\n' +
-        '    </p>\n' +
-        '    <p>\n' +
-        '      3\n' +
-        '    </p>\n' +
-        '    <p>\n' +
-        '      4\n' +
-        '    </p>\n' +
-        '</div>\n')
-
-    it 'should provide access to the context within inline javascript', () ->
-      model = { foo: "hello" }
-      html = haml.compileCoffeeHaml('evaluation-using-context').call({model: model})
-      expect(html).toEqual(
-        '\n<div class="main">\n' +
-        '  <span>\n' +
-        '    hello world\n' +
-        '  </span>\n' +
-        '</div>\n')
-
-    it 'should be able to access variables declared as part of the haml', () ->
-      model = { foo: "hello" }
-      html = haml.compileCoffeeHaml('attribute-hash-evaluation-using-outer-scope').call({model: model})
-      expect(html).toEqual(
-        '\n<div class="main">\n' +
-        '  <span someattribute="hello world">\n' +
-        '  </span>\n' +
-        '</div>\n')
-
-  describe 'template with comments', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="comments">\n' +
-        '.main\n' +
-        '  / This is a comment\n' +
-        '  /\n' +
-        '    %span\n' +
-        '      = errorTitle\n' +
-        '  -# .clear\n' +
-        '      %span= errorHeading\n' +
-        '  -#  = var label = "Calculation: "; return label + (1 + 2 * 3)\n' +
-        '  -#  = ["hi", "there", "reader!"]\n' +
-        '  -#  = evilScript \n' +
-        '  /[if IE]  \n' +
-        '    %a(href = "http://www.mozilla.com/en-US/firefox/" )\n' +
-        '      %h1 Get Firefox\n' +
-        '</script>')
-
-    it 'should render the correct html', () ->
-      html = haml.compileHaml('comments')({errorTitle: "An error's a terrible thing"})
-      expect(html).toEqual(
-        '\n<div class="main">\n' +
-        '  <!-- This is a comment  -->\n' +
-        '  <!--\n' +
-        '    <span>\n' +
-        '      An error&#39;s a terrible thing\n' +
-        '    </span>\n' +
-        '  -->\n' +
-        '  <!--[if IE]  >\n' +
-        '    <a href="http://www.mozilla.com/en-US/firefox/">\n' +
-        '      <h1>\n' +
-        '        Get Firefox\n' +
-        '      </h1>\n' +
-        '    </a>\n' +
-        '  <![endif]-->\n' +
-        '</div>\n')
 
   describe 'template with Javascript code lines and no closing blocks', () ->
 

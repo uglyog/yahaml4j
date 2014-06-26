@@ -17,7 +17,7 @@ public class Tokeniser {
     private static Pattern HTMLIDENTIFIER = Pattern.compile("[a-zA-Z][a-zA-Z0-9\\-]*");
     private static Pattern QUOTEDSTRING = Pattern.compile("'[^'\\n]*'");
     private static Pattern QUOTEDSTRING2 = Pattern.compile("\"[^\"\\n]*\"");
-//        comment:          /\-#/g,
+    private static Pattern COMMENT = Pattern.compile("\\-#");
 //        escapeHtml:       /\&=/g,
 //        unescapeHtml:     /\!=/g,
 //        objectReference:  /\[[a-zA-Z_@][a-zA-Z0-9_]*\]/g,
@@ -133,9 +133,9 @@ public class Tokeniser {
             }
 
             matchMultiCharToken(WHITESPACE, Token.TokenType.WS, null);
-            matchMultiCharToken(CONTINUELINE, Token.TokenType.CONTINUELINE, null);
 
             if (this.mode == null) {
+                matchMultiCharToken(CONTINUELINE, Token.TokenType.CONTINUELINE, null);
                 matchMultiCharToken(ELEMENT, Token.TokenType.ELEMENT, new MatchedFn() {
                     @Override
                     public String match(String value) {
@@ -154,6 +154,7 @@ public class Tokeniser {
                         return value.substring(1);
                     }
                 });
+                matchMultiCharToken(COMMENT, Token.TokenType.COMMENT, null);
             }
 
             if (this.mode == Mode.ATTRHASH) {
@@ -180,7 +181,6 @@ public class Tokeniser {
               @matchMultiCharToken(@tokenMatchers.doctype, { doctype: true, token: 'DOCTYPE' })
               @matchMultiCharToken(@tokenMatchers.filter, { filter: true, token: 'FILTER' }, (matched) -> matched.substring(1) )
 
-              @matchMultiCharToken(@tokenMatchers.comment, { comment: true, token: 'COMMENT' })
               @matchMultiCharToken(@tokenMatchers.escapeHtml, { escapeHtml: true, token: 'ESCAPEHTML' })
               @matchMultiCharToken(@tokenMatchers.unescapeHtml, { unescapeHtml: true, token: 'UNESCAPEHTML' })
               @matchMultiCharToken(@tokenMatchers.objectReference, { objectReference: true, token: 'OBJECTREFERENCE' }, (matched) ->
