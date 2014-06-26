@@ -89,9 +89,9 @@ class Haml {
             @_jsLine(tokeniser, indent, generator.elementStack, generator)*/
                     } else if (tokeniser.getToken().type == Token.TokenType.COMMENT || tokeniser.getToken().type == Token.TokenType.SLASH) {
                         _commentLine(tokeniser, indent, generator.getElementStack(), generator);
-          /*else if tokeniser.token.amp
-            @_escapedLine(tokeniser, indent, generator.elementStack, generator)
-          else if tokeniser.token.filter
+                    } else if (tokeniser.getToken().type == Token.TokenType.AMP) {
+                        _escapedLine(tokeniser, indent, generator.getElementStack(), generator);
+          /*else if tokeniser.token.filter
             @_filter(tokeniser, indent, generator, options) */
                     } else {
                         _templateLine(tokeniser, generator.getElementStack(), indent, generator, options);
@@ -111,6 +111,20 @@ class Haml {
         _closeElements(0, generator.getElementStack(), tokeniser, generator);
 
         return generator.closeAndReturnOutput();
+    }
+
+    private void _escapedLine(Tokeniser tokeniser, Integer indent, List<Element> elementStack, HamlGenerator generator) {
+        if (tokeniser.getToken().type == Token.TokenType.AMP) {
+            _closeElements(indent, elementStack, tokeniser, generator);
+            generator.getOutputBuffer().append(HamlRuntime.indentText(indent));
+            tokeniser.getNextToken();
+            String contents = tokeniser.skipToEOLorEOF();
+            if (StringUtils.isNotEmpty(contents)) {
+                generator.getOutputBuffer().append(HamlRuntime.escapeHTML(contents));
+            }
+            generator.getOutputBuffer().append(_newline(tokeniser));
+            tokeniser.getNextToken();
+        }
     }
 
     private void _commentLine(Tokeniser tokeniser, Integer indent, List<Element> elementStack, HamlGenerator generator) {
@@ -582,16 +596,6 @@ class Haml {
         i = haml._whitespace(tokeniser)
       haml.filters[filter](filterBlock, generator, indent, tokeniser.currentParsePoint())
       tokeniser.pushBackToken()
-
-  _escapedLine: (tokeniser, indent, elementStack, generator) ->
-    if tokeniser.token.amp
-      haml._closeElements(indent, elementStack, tokeniser, generator)
-      generator.outputBuffer.append(HamlRuntime.indentText(indent))
-      tokeniser.getNextToken()
-      contents = tokeniser.skipToEOLorEOF()
-      generator.outputBuffer.append(haml.HamlRuntime.escapeHTML(contents)) if (contents && contents.length > 0)
-      generator.outputBuffer.append(@_newline(tokeniser))
-      tokeniser.getNextToken()
 
   _embeddedJs: (tokeniser, indent, elementStack, tagOptions, generator) ->
     haml._closeElements(indent, elementStack, tokeniser, generator) if elementStack

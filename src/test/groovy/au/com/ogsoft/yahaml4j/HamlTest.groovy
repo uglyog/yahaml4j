@@ -302,6 +302,31 @@ public class HamlTest {
         )
     }
 
+    @Test
+    public void "Escaping HTML"() {
+        def haml = haml.compileHaml("Escaping HTML",
+            ".main\n" +
+            "  <div>\n" +
+            "    &  <p>\n" +
+            "    &  </p>\n" +
+            "    &  <span>\n" +
+            "    &    <script>alert(\"I'm evil!\");\n" +
+            "    &  </span>\n" +
+            "  </div>\n", null)
+        String result = runScript(haml)
+        assertThat result, is(
+            "<div class=\"main\">\n" +
+            "  <div>\n" +
+            "      &lt;p&gt;\n" +
+            "      &lt;/p&gt;\n" +
+            "      &lt;span&gt;\n" +
+            "        &lt;script&gt;alert(&quot;I&#39;m evil!&quot;);\n" +
+            "      &lt;/span&gt;\n" +
+            "  </div>\n" +
+            "</div>\n"
+        )
+    }
+
     private Object runScript(String haml, String context = "{}") {
         ScriptEngineManager factory = new ScriptEngineManager()
         ScriptEngine engine = factory.getEngineByName("JavaScript")
@@ -508,33 +533,6 @@ public class HamlTest {
             '      4\n' +
             '    </p>\n' +
             '</div>\n')
-
-  describe 'Escaping HTML', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="simple">' +
-        '.main\n' +
-        '  <div>\n' +
-        '    &  <p>\n' +
-        '    &  </p>\n' +
-        '    &  <span>\n' +
-        '    &    <script>alert("I\'m evil!");\n' +
-        '    &  </span>\n' +
-        '  </div>\n' +
-        '</script>')
-
-    it 'should render the correct html', () ->
-      html = haml.compileHaml('simple')()
-      expect(html).toEqual(
-        '<div class="main">\n' +
-        '  <div>\n' +
-        '      &lt;p&gt;\n' +
-        '      &lt;/p&gt;\n' +
-        '      &lt;span&gt;\n' +
-        '        &lt;script&gt;alert(&quot;I&#39;m evil!&quot;);\n' +
-        '      &lt;/span&gt;\n' +
-        '  </div>\n' +
-        '</div>\n')
 
   describe 'Whitespace Removal: > and <', () ->
 

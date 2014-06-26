@@ -1,5 +1,6 @@
 package au.com.ogsoft.yahaml4j;
 
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
@@ -106,7 +107,7 @@ public class HamlRuntime {
         return html.toString();
     }
 
-    private static List flatten(List list) {
+    static List flatten(List list) {
         List newlist = new ArrayList();
         for(Object item: list) {
             if (item instanceof List) {
@@ -162,7 +163,7 @@ public class HamlRuntime {
         }
     }
 
-    private static String attrValue(String attr, Object value) {
+    static String attrValue(String attr, Object value) {
         return attr.equals("selected") || attr.equals("checked") || attr.equals("disabled") ? attr : String.valueOf(value);
     }
 
@@ -249,8 +250,15 @@ public class HamlRuntime {
 
      */
 
-    private static boolean hasValue(Object value) {
+    static boolean hasValue(Object value) {
         return (value != null) && (((value instanceof Boolean) && (Boolean) value) || (!(value instanceof Boolean)));
     }
 
+    /**
+     * Replaces all characters with HTML entities.
+     * Replace the apos entity with character 39 so that it renders correctly in IE7
+     */
+    public static String escapeHTML(String contents) {
+        return StringEscapeUtils.escapeHtml4(contents).replaceAll("'", "&#39;");
+    }
 }
