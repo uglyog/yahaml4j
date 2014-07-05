@@ -175,6 +175,60 @@ public class JavascriptGenerator extends BaseCodeGenerator {
     }
 
     /**
+     * Append a line of code to the output buffer
+     */
+    @Override
+    public void appendCodeLine(String line, String newline) {
+        outputBuffer.flush();
+        outputBuffer.appendToOutputBuffer(HamlRuntime.indentText(getIndent()));
+        outputBuffer.appendToOutputBuffer(line);
+        outputBuffer.appendToOutputBuffer(newline);
+    }
+
+    /**
+     * Does the current line end with a function declaration?
+     */
+    @Override
+    public boolean lineMatchesStartFunctionBlock(String line) {
+        return line.matches(".*function\\s*\\((,?\\s*\\w+)*\\)\\s*\\{\\s*$");
+    }
+
+    /**
+     * Does the current line end with a starting code block
+     */
+    @Override
+    public boolean lineMatchesStartBlock(String line) {
+        return line.matches(".*\\{\\s*$");
+    }
+
+    /**
+     * Append a line with embedded javascript code
+     */
+    @Override
+    public void appendEmbeddedCode(String indentText, String expression, boolean escapeHtml, boolean perserveWhitespace, ParsePoint currentParsePoint) {
+        outputBuffer.flush();
+
+        outputBuffer.appendToOutputBuffer(indentText + "try {\n");
+        outputBuffer.appendToOutputBuffer(indentText + "    var value = eval(\"" +
+            escapeCode(expression.trim()).replaceAll("\n", "\\\\n") + "\");\n");
+        outputBuffer.appendToOutputBuffer(indentText + "    value = value === null ? \"\" : value;\n");
+        if (escapeHtml) {
+            outputBuffer.appendToOutputBuffer(indentText + "    html.push(haml.HamlRuntime.escapeHTML(String(value)));\n");
+        } else if (perserveWhitespace) {
+            outputBuffer.appendToOutputBuffer(indentText + "    html.push(haml.HamlRuntime.perserveWhitespace(String(value)));\n");
+        } else {
+            outputBuffer.appendToOutputBuffer(indentText + "    html.push(String(value));\n");
+        }
+
+        outputBuffer.appendToOutputBuffer(indentText + "} catch (e) {\n");
+        outputBuffer.appendToOutputBuffer(indentText + "  handleError(haml.HamlRuntime.templateError(" +
+          currentParsePoint.lineNumber + ", " + currentParsePoint.characterNumber + ", \"" +
+          escapeCode(currentParsePoint.currentLine) + "\",\n");
+        outputBuffer.appendToOutputBuffer(indentText + "    \"Error evaluating expression - \" + e));\n");
+        outputBuffer.appendToOutputBuffer(indentText + "}\n");
+    }
+
+    /**
      * process text based on escape and preserve flags
      */
     private String processText(String text, ProcessOptions options) {
@@ -195,49 +249,6 @@ public class JavascriptGenerator extends BaseCodeGenerator {
     }
 
     /*
-  ###
-    Append a line with embedded javascript code
-  ###
-  appendEmbeddedCode: (indentText, expression, escapeContents, perserveWhitespace, currentParsePoint) ->
-    @outputBuffer.flush()
-
-    @outputBuffer.appendToOutputBuffer(indentText + 'try {\n')
-    @outputBuffer.appendToOutputBuffer(indentText + '    var value = eval("' +
-      (_.str || _).trim(expression).replace(/"/g, '\\"').replace(/\\n/g, '\\\\n') + '");\n')
-    @outputBuffer.appendToOutputBuffer(indentText + '    value = value === null ? "" : value;')
-    if escapeContents
-      @outputBuffer.appendToOutputBuffer(indentText + '    html.push(haml.HamlRuntime.escapeHTML(String(value)));\n')
-    else if perserveWhitespace
-      @outputBuffer.appendToOutputBuffer(indentText + '    html.push(haml.HamlRuntime.perserveWhitespace(String(value)));\n')
-    else
-      @outputBuffer.appendToOutputBuffer(indentText + '    html.push(String(value));\n')
-
-    @outputBuffer.appendToOutputBuffer(indentText + '} catch (e) {\n');
-    @outputBuffer.appendToOutputBuffer(indentText + '  handleError(haml.HamlRuntime.templateError(' +
-      currentParsePoint.lineNumber + ', ' + currentParsePoint.characterNumber + ', "' +
-      @escapeCode(currentParsePoint.currentLine) + '",\n')
-    @outputBuffer.appendToOutputBuffer(indentText + '    "Error evaluating expression - " + e));\n')
-    @outputBuffer.appendToOutputBuffer(indentText + '}\n')
-
-
-  ###
-    Append a line of code to the output buffer
-  ###
-  appendCodeLine: (line, eol) ->
-    @outputBuffer.flush()
-    @outputBuffer.appendToOutputBuffer(HamlRuntime.indentText(@indent))
-    @outputBuffer.appendToOutputBuffer(line)
-    @outputBuffer.appendToOutputBuffer(eol)
-
-  ###
-    Does the current line end with a function declaration?
-  ###
-  lineMatchesStartFunctionBlock: (line) -> line.match(/function\s*\((,?\s*\w+)*\)\s*\{\s*$/)
-
-  ###
-    Does the current line end with a starting code block
-  ###
-  lineMatchesStartBlock: (line) -> line.match(/\{\s*$/)
 
   ###
     Clean any reserved words in the given hash

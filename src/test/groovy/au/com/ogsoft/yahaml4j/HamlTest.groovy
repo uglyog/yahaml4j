@@ -288,7 +288,7 @@ public class HamlTest {
             "  <!-- This is a comment  -->\n" +
             "  <!--\n" +
             "    <span>\n" +
-            "      = errorTitle\n" +
+            "      An error&#39;s a terrible thing\n" +
             "    </span>\n" +
             "  -->\n" +
             "  <!--[if IE]  >\n" +
@@ -327,6 +327,60 @@ public class HamlTest {
         )
     }
 
+    @Test
+    public void "template with code evaluation"() {
+        def haml = haml.compileHaml("code evaluation",
+            ".box.error\n" +
+            "  %span\n" +
+            "    = errorTitle\n" +
+            "  .clear\n" +
+            "    - var label = \"Calculation: \";\n" +
+            "    %span= errorHeading\n" +
+            "    = label + (1 + 2 * 3)\n" +
+            "    = [\"hi\", \"there\", \"reader!\"]\n" +
+            "    = evilScript \n" +
+            "    %span&= errorHeading\n" +
+            "    &= label + (1 + 2 * 3)\n" +
+            "    &= [\"hi\", \"there\", \"reader!\"]\n" +
+            "    &= evilScript \n" +
+            "    %span!= errorHeading\n" +
+            "    != label + (1 + 2 * 3)\n" +
+            "    != [\"hi\", \"there\", \"reader!\"]\n" +
+            "    != evilScript \n", null)
+        String result = runScript(haml, "{\n" +
+                "              errorTitle: \"Error Title\",\n" +
+                "              errorHeading: \"Error Heading <div>div text</div>\",\n" +
+                "              evilScript: '<script>alert(\"I\\'m evil!\");</script>'\n" +
+                "            }")
+        assertThat result, is(
+            "<div class=\"box error\">\n" +
+            "  <span>\n" +
+            "    Error Title\n" +
+            "  </span>\n" +
+            "  <div class=\"clear\">\n" +
+            "    <span>\n" +
+            "      Error Heading &lt;div&gt;div text&lt;/div&gt;\n" +
+            "    </span>\n" +
+            "    Calculation: 7\n" +
+            "    hi,there,reader!\n" +
+            "    &lt;script&gt;alert(&quot;I&#39;m evil!&quot;);&lt;/script&gt;\n" +
+            "    <span>\n" +
+            "      Error Heading &lt;div&gt;div text&lt;/div&gt;\n" +
+            "    </span>\n" +
+            "    Calculation: 7\n" +
+            "    hi,there,reader!\n" +
+            "    &lt;script&gt;alert(&quot;I&#39;m evil!&quot;);&lt;/script&gt;\n" +
+            "    <span>\n" +
+            "      Error Heading <div>div text</div>\n" +
+            "    </span>\n" +
+            "    Calculation: 7\n" +
+            "    hi,there,reader!\n" +
+            "    <script>alert(\"I'm evil!\");</script>\n" +
+            "  </div>\n" +
+            "</div>\n"
+        )
+    }
+
     private Object runScript(String haml, String context = "{}") {
         ScriptEngineManager factory = new ScriptEngineManager()
         ScriptEngine engine = factory.getEngineByName("JavaScript")
@@ -338,65 +392,6 @@ public class HamlTest {
     }
 
     /*
-
-  describe 'template with Javascript evaluation', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="evaluation">\n' +
-        '.box.error\n' +
-        '  %span\n' +
-        '    = errorTitle\n' +
-        '  .clear\n' +
-        '    - var label = "Calculation: ";\n' +
-        '    %span= errorHeading\n' +
-        '    = label + (1 + 2 * 3)\n' +
-        '    = ["hi", "there", "reader!"]\n' +
-        '    = evilScript \n' +
-        '    %span&= errorHeading\n' +
-        '    &= label + (1 + 2 * 3)\n' +
-        '    &= ["hi", "there", "reader!"]\n' +
-        '    &= evilScript \n' +
-        '    %span!= errorHeading\n' +
-        '    != label + (1 + 2 * 3)\n' +
-        '    != ["hi", "there", "reader!"]\n' +
-        '    != evilScript \n' +
-        '</script>')
-
-    for generator in ['javascript', 'productionjavascript']
-      do (generator) ->
-        it 'should render the correct html for ' + generator, () ->
-          html = haml.compileHaml(sourceId: 'evaluation', generator: generator)({
-              errorTitle: "Error Title",
-              errorHeading: "Error Heading <div>div text</div>",
-              evilScript: '<script>alert("I\'m evil!");</script>'
-            })
-          expect(html).toEqual(
-            '\n' +
-            '<div class="box error">\n' +
-            '  <span>\n' +
-            '    Error Title\n' +
-            '  </span>\n' +
-            '  <div class="clear">\n' +
-            '    <span>\n' +
-            '      Error Heading &lt;div&gt;div text&lt;/div&gt;\n' +
-            '    </span>\n' +
-            '    Calculation: 7\n' +
-            '    hi,there,reader!\n' +
-            '    &lt;script&gt;alert(&quot;I&#39;m evil!&quot;);&lt;/script&gt;\n' +
-            '    <span>\n' +
-            '      Error Heading &lt;div&gt;div text&lt;/div&gt;\n' +
-            '    </span>\n' +
-            '    Calculation: 7\n' +
-            '    hi,there,reader!\n' +
-            '    &lt;script&gt;alert(&quot;I&#39;m evil!&quot;);&lt;/script&gt;\n' +
-            '    <span>\n' +
-            '      Error Heading <div>div text</div>\n' +
-            '    </span>\n' +
-            '    Calculation: 7\n' +
-            '    hi,there,reader!\n' +
-            '    <script>alert("I\'m evil!");</script>\n' +
-            '  </div>\n' +
-            '</div>\n')
 
   describe 'template with Javascript code lines', () ->
 
@@ -668,10 +663,6 @@ public class HamlTest {
         '    </p>\n' +
         '  </div>\n' +
         '</h1>\n')
-
-  describe 'without template', () ->
-    it 'should render the correct html', () ->
-      expect(haml.compileStringToJs("%div")()).toEqual('<div>\n</div>\n')
 
   describe 'whitespace preservation', () ->
 

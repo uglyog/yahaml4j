@@ -40,4 +40,24 @@ public interface HamlGenerator {
      * Scan the token stream for a valid block of code
      */
     String scanEmbeddedCode(Tokeniser tokeniser);
+
+    /**
+     * Append a line of code to the output buffer
+     */
+    void appendCodeLine(String line, String newline);
+
+    /**
+     * Does the current line end with a function declaration?
+     */
+    boolean lineMatchesStartFunctionBlock(String line);
+
+    /**
+     * Does the current line end with a starting code block
+     */
+    boolean lineMatchesStartBlock(String line);
+
+    /**
+     * Append a line with embedded code
+     */
+    void appendEmbeddedCode(String indentText, String expression, boolean escapeHtml, boolean perserveWhitespace, ParsePoint currentParsePoint);
 }

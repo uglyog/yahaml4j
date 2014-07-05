@@ -18,8 +18,8 @@ public class Tokeniser {
     private static Pattern QUOTEDSTRING = Pattern.compile("'[^'\\n]*'");
     private static Pattern QUOTEDSTRING2 = Pattern.compile("\"[^\"\\n]*\"");
     private static Pattern COMMENT = Pattern.compile("\\-#");
-//        escapeHtml:       /\&=/g,
-//        unescapeHtml:     /\!=/g,
+    private static Pattern ESCAPEHTML = Pattern.compile("&=");
+    private static Pattern UNESCAPEHTML = Pattern.compile("!=");
 //        objectReference:  /\[[a-zA-Z_@][a-zA-Z0-9_]*\]/g,
 //        doctype:          /!!!/g,
     private static Pattern CONTINUELINE = Pattern.compile("\\|[ \\t]*\\n");
@@ -155,6 +155,8 @@ public class Tokeniser {
                     }
                 });
                 matchMultiCharToken(COMMENT, Token.TokenType.COMMENT, null);
+                matchMultiCharToken(ESCAPEHTML, Token.TokenType.ESCAPEHTML, null);
+                matchMultiCharToken(UNESCAPEHTML, Token.TokenType.UNESCAPEHTML, null);
             }
 
             if (this.mode == Mode.ATTRHASH) {
@@ -181,8 +183,6 @@ public class Tokeniser {
               @matchMultiCharToken(@tokenMatchers.doctype, { doctype: true, token: 'DOCTYPE' })
               @matchMultiCharToken(@tokenMatchers.filter, { filter: true, token: 'FILTER' }, (matched) -> matched.substring(1) )
 
-              @matchMultiCharToken(@tokenMatchers.escapeHtml, { escapeHtml: true, token: 'ESCAPEHTML' })
-              @matchMultiCharToken(@tokenMatchers.unescapeHtml, { unescapeHtml: true, token: 'UNESCAPEHTML' })
               @matchMultiCharToken(@tokenMatchers.objectReference, { objectReference: true, token: 'OBJECTREFERENCE' }, (matched) ->
                 matched.substring(1, matched.length - 1)
               )
