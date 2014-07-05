@@ -4,6 +4,8 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Haml runtime functions. These are used both by the compiler and the generated template functions
@@ -191,26 +193,6 @@ public class HamlRuntime {
     String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, "&#39;")
 
-  ###
-    Provides the implementation to preserve the whitespace as per the HAML reference
-  ###
-  perserveWhitespace: (str) ->
-    re = /<[a-zA-Z]+>[^<]*<\/[a-zA-Z]+>/g
-    out = ''
-    i = 0
-    result = re.exec(str)
-    if result
-      while result
-        out += str.substring(i, result.index)
-        out += result[0].replace(/\n/g, '&#x000A;')
-        i = result.index + result[0].length
-        result = re.exec(str)
-      out += str.substring(i)
-    else
-      out = str
-    out
-
-  ###
 
   ###
     Flattens a deeply nested hash into a single hash by combining the keys with a minus
@@ -260,5 +242,28 @@ public class HamlRuntime {
      */
     public static String escapeHTML(String contents) {
         return StringEscapeUtils.escapeHtml4(contents).replaceAll("'", "&#39;");
+    }
+
+    /**
+     * Provides the implementation to preserve the whitespace as per the HAML reference
+     */
+    public static String perserveWhitespace(String text) {
+        Pattern re = Pattern.compile("<[a-zA-Z]+>[^<]*</[a-zA-Z]+>");
+        String out = "";
+        int i = 0;
+        Matcher matcher = re.matcher(text);
+        boolean found = matcher.find();
+        if (found) {
+          while (found) {
+            out += text.substring(i, matcher.start());
+            out += matcher.group().replaceAll("\n", "&#x000A;");
+            i = matcher.end();
+            found = matcher.find();
+          }
+          out += text.substring(i);
+        } else {
+          out = text;
+        }
+        return out;
     }
 }

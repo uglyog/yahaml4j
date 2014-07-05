@@ -512,6 +512,34 @@ public class HamlTest {
         )
     }
 
+    @Test
+    public void "Whitespace Removal: > and <"() {
+        def haml = haml.compileHaml("whitespace-removal",
+            "%blockquote<\n" +
+            "  %div\n" +
+            "    Foo!\n" +
+            "%img\n" +
+            "%img>\n" +
+            "%img\n" +
+            "%p<= \"Foo\\nBar\"\n" +
+            "%img\n" +
+            "%pre><\n" +
+            "  foo\n" +
+            "  bar\n" +
+            "%img", null)
+        String result = runScript(haml)
+        assertThat result, is(
+            "<blockquote><div>\n" +
+            "    Foo!\n" +
+            "  </div></blockquote>\n" +
+            "<img/><img/><img/>\n" +
+            "<p>Foo\n" +
+            "Bar</p>\n" +
+            "<img/><pre>foo\n" +
+            "bar</pre><img/>\n"
+        )
+    }
+
     private Object runScript(String haml, String context = "{}") {
         ScriptEngineManager factory = new ScriptEngineManager()
         ScriptEngine engine = factory.getEngineByName("JavaScript")
@@ -523,36 +551,6 @@ public class HamlTest {
     }
 
     /*
-
-  describe 'Whitespace Removal: > and <', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="whitespace-removal">\n' +
-        '%blockquote<\n' +
-        '  %div\n' +
-        '    Foo!\n' +
-        '%img\n' +
-        '%img>\n' +
-        '%img\n' +
-        '%p<= "Foo\\nBar"\n' +
-        '%img\n' +
-        '%pre><\n' +
-        '  foo\n' +
-        '  bar\n' +
-        '%img\n' +
-        '</script>')
-
-    it 'should render the correct html', () ->
-      html = haml.compileHaml('whitespace-removal')()
-      expect(html).toEqual(
-        '\n<blockquote><div>\n' +
-        '    Foo!\n' +
-        '  </div></blockquote>\n' +
-        '<img/><img/><img/>\n' +
-        '<p>Foo\n' +
-        'Bar</p>\n' +
-        '<img/><pre>foo\n' +
-        'bar</pre><img/>\n')
 
   describe 'template with object reference', () ->
 

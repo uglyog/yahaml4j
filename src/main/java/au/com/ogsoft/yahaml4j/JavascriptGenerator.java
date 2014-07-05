@@ -235,7 +235,7 @@ public class JavascriptGenerator extends BaseCodeGenerator {
         if (options != null && options.escapeHTML) {
             return HamlRuntime.escapeHTML(text);
         } else if (options != null && options.perserveWhitespace) {
-            return null; // HamlRuntime.perserveWhitespace(text);
+            return HamlRuntime.perserveWhitespace(text);
         } else {
             return text;
         }

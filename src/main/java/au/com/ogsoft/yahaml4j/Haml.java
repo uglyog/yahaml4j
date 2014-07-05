@@ -299,7 +299,7 @@ class Haml {
                 tagOptions, generator);
         }
 
-        boolean hasContents = false;
+        boolean hasContents;
         if (tokeniser.getToken().type == Token.TokenType.WS) {
             tokeniser.getNextToken();
         }
@@ -593,7 +593,7 @@ class Haml {
     }
 
     private boolean _parentInnerWhitespace(List<Element> elementStack, int indent) {
-        return indent == 0 || indent >= elementStack.size() || (elementStack.get(indent - 1) == null || elementStack.get(indent - 1).tagOptions == null
+        return indent == 0 || indent > elementStack.size() || (elementStack.get(indent - 1) == null || elementStack.get(indent - 1).tagOptions == null
             || elementStack.get(indent - 1).tagOptions.innerWhitespace);
     }
 
