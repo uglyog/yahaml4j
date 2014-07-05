@@ -21,7 +21,7 @@ public class Tokeniser {
     private static Pattern ESCAPEHTML = Pattern.compile("&=");
     private static Pattern UNESCAPEHTML = Pattern.compile("!=");
     private static Pattern OBJECTREF = Pattern.compile("\\[[a-zA-Z_][a-zA-Z0-9_]*\\]");
-//        doctype:          /!!!/g,
+    private static Pattern DOCTYPE = Pattern.compile("!!!");
     private static Pattern CONTINUELINE = Pattern.compile("\\|[ \\t]*\\n");
     private static Pattern FILTER = Pattern.compile(":\\w+");
     private static Pattern CODE_IDENTIFIER = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
@@ -163,6 +163,7 @@ public class Tokeniser {
                         return value.substring(1, value.length() - 1);
                     }
                 });
+                matchMultiCharToken(DOCTYPE, Token.TokenType.DOCTYPE, null);
             }
 
             if (this.mode == Mode.ATTRHASH) {
@@ -186,7 +187,6 @@ public class Tokeniser {
             }
 
                 /*
-              @matchMultiCharToken(@tokenMatchers.doctype, { doctype: true, token: 'DOCTYPE' })
               @matchMultiCharToken(@tokenMatchers.filter, { filter: true, token: 'FILTER' }, (matched) -> matched.substring(1) )
               */
 

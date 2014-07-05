@@ -599,6 +599,43 @@ public class HamlTest {
         )
     }
 
+    @Test
+    public void "whitespace preservation"() {
+        def haml = haml.compileHaml("whitespace preservation",
+            "%h1\n" +
+            "  %div\n" +
+            "    ~ \"Foo\\n<pre>Bar\\nBaz</pre>\\n<a>Test\\nTest\\n</a>\\nOther\"", null)
+        String result = runScript(haml)
+        assertThat result, is(
+            "<h1>\n" +
+            "  <div>\n" +
+            "    Foo\n" +
+            "<pre>Bar&#x000A;Baz</pre>\n" +
+            "<a>Test&#x000A;Test&#x000A;</a>\n" +
+            "Other\n" +
+            "  </div>\n" +
+            "</h1>\n"
+        )
+    }
+
+    @Test
+    public void "doctype"() {
+        def haml = haml.compileHaml("whitespace preservation",
+            "!!! XML\n" +
+            "!!! XML iso-8859-1\n" +
+            "!!!\n" +
+            "!!! 1.1\n" +
+            "%html", null)
+        String result = runScript(haml)
+        assertThat result, is(
+            "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n" +
+            "<?xml version=\"1.0\" encoding=\"iso-8859-1\" ?>\n" +
+            "<!DOCTYPE html>\n" +
+            "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n" +
+            "<html>\n</html>\n"
+        )
+    }
+
     private Object runScript(String haml, String context = "{}") {
         ScriptEngineManager factory = new ScriptEngineManager()
         ScriptEngine engine = factory.getEngineByName("JavaScript")
@@ -610,47 +647,6 @@ public class HamlTest {
     }
 
     /*
-
-  describe 'whitespace preservation', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="whitespace-preservation">\n' +
-        '%h1\n' +
-        '  %div\n' +
-        '    ~ "Foo\\n<pre>Bar\\nBaz</pre>\\n<a>Test\\nTest\\n</a>\\nOther"\n' +
-        '</script>')
-
-    it 'should render the correct html', () ->
-      html = haml.compileHaml('whitespace-preservation')()
-      expect(html).toEqual(
-        '\n<h1>\n' +
-        '  <div>\n' +
-        '    Foo\n' +
-        '<pre>Bar&#x000A;Baz</pre>\n' +
-        '<a>Test&#x000A;Test&#x000A;</a>\n' +
-        'Other\n' +
-        '  </div>\n' +
-        '</h1>\n')
-
-  describe 'doctype', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="doctype">\n' +
-        '!!! XML\n' +
-        '!!! XML iso-8859-1\n' +
-        '!!!\n' +
-        '!!! 1.1\n' +
-        '%html\n' +
-        '</script>')
-
-    it 'should render the correct html', () ->
-      html = haml.compileHaml('doctype')()
-      expect(html).toEqual(
-        '\n<?xml version=\'1.0\' encoding=\'utf-8\' ?>\n' +
-        '<?xml version=\'1.0\' encoding=\'iso-8859-1\' ?>\n' +
-        '<!DOCTYPE html>\n' +
-        '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">\n' +
-        '<html>\n</html>\n')
 
   describe 'Multiline code blocks', () ->
 

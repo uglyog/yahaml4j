@@ -79,9 +79,8 @@ class Haml {
                     if (tokeniser.getToken().type == Token.TokenType.EOL) {
                         generator.getOutputBuffer().append(HamlRuntime.indentText(indent) + tokeniser.getToken().getMatched());
                         tokeniser.getNextToken();
-        /*
-          else if tokeniser.token.doctype
-            @_doctype(tokeniser, indent, generator)*/
+                    } else if (tokeniser.getToken().type == Token.TokenType.DOCTYPE) {
+                        _doctype(tokeniser, indent, generator);
                     } else if (tokeniser.getToken().type == Token.TokenType.EQUAL ||
                             tokeniser.getToken().type == Token.TokenType.ESCAPEHTML ||
                             tokeniser.getToken().type == Token.TokenType.UNESCAPEHTML ||
@@ -115,6 +114,45 @@ class Haml {
         _closeElements(0, generator.getElementStack(), tokeniser, generator);
 
         return generator.closeAndReturnOutput();
+    }
+
+    private void _doctype(Tokeniser tokeniser, Integer indent, HamlGenerator generator) {
+        if (tokeniser.getToken().type == Token.TokenType.DOCTYPE) {
+            generator.getOutputBuffer().append(HamlRuntime.indentText(indent));
+            tokeniser.getNextToken();
+            if (tokeniser.getToken().type == Token.TokenType.WS) {
+                tokeniser.getNextToken();
+            }
+            String contents = tokeniser.skipToEOLorEOF();
+            if (StringUtils.isNotEmpty(contents)) {
+                String[] params = contents.split("\\s+");
+                if ("XML".equals(params[0])) {
+                    if (params.length > 1) {
+                        generator.getOutputBuffer().append("<?xml version=\"1.0\" encoding=\"" + params[1] + "\" ?>");
+                    } else {
+                        generator.getOutputBuffer().append("<?xml version=\"1.0\" encoding=\"utf-8\" ?>");
+                    }
+                } else if ("Strict".equals(params[0])) {
+                    generator.getOutputBuffer().append("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">");
+                } else if ("Frameset".equals(params[0])) {
+                    generator.getOutputBuffer().append("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Frameset//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd\">");
+                } else if ("5".equals(params[0])) {
+                    generator.getOutputBuffer().append("<!DOCTYPE html>");
+                } else if ("1.1".equals(params[0])) {
+                    generator.getOutputBuffer().append("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">");
+                } else if ("Basic".equals(params[0])) {
+                    generator.getOutputBuffer().append("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML Basic 1.1//EN\" \"http://www.w3.org/TR/xhtml-basic/xhtml-basic11.dtd\">");
+                } else if ("Mobile".equals(params[0])) {
+                    generator.getOutputBuffer().append("<!DOCTYPE html PUBLIC \"-//WAPFORUM//DTD XHTML Mobile 1.2//EN\" \"http://www.openmobilealliance.org/tech/DTD/xhtml-mobile12.dtd\">");
+                } else if ("RDFa".equals(params[0])) {
+                    generator.getOutputBuffer().append("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML+RDFa 1.0//EN\" \"http://www.w3.org/MarkUp/DTD/xhtml-rdfa-1.dtd\">");
+                }
+            } else {
+                generator.getOutputBuffer().append("<!DOCTYPE html>");
+            }
+            generator.getOutputBuffer().append(_newline(tokeniser));
+            tokeniser.getNextToken();
+        }
     }
 
     private void _embeddedCode(Tokeniser tokeniser, Integer indent, List<Element> elementStack, TagOptions tagOptions, HamlGenerator generator) {
@@ -616,32 +654,6 @@ class Haml {
     }
 
     /*
-
-  _doctype: (tokeniser, indent, generator) ->
-    if tokeniser.token.doctype
-      generator.outputBuffer.append(HamlRuntime.indentText(indent))
-      tokeniser.getNextToken()
-      tokeniser.getNextToken() if tokeniser.token.ws
-      contents = tokeniser.skipToEOLorEOF()
-      if contents and contents.length > 0
-        params = contents.split(/\s+/)
-        switch params[0]
-          when "XML"
-            if params.length > 1
-              generator.outputBuffer.append("<?xml version="1.0" encoding="#{params[1]}" ?>")
-            else
-              generator.outputBuffer.append("<?xml version="1.0" encoding="utf-8" ?>")
-          when "Strict" then generator.outputBuffer.append("<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">")
-          when "Frameset" then generator.outputBuffer.append("<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Frameset//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd">")
-          when "5" then generator.outputBuffer.append("<!DOCTYPE html>")
-          when "1.1" then generator.outputBuffer.append("<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">")
-          when "Basic" then generator.outputBuffer.append("<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML Basic 1.1//EN" "http://www.w3.org/TR/xhtml-basic/xhtml-basic11.dtd">")
-          when "Mobile" then generator.outputBuffer.append("<!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.2//EN" "http://www.openmobilealliance.org/tech/DTD/xhtml-mobile12.dtd">")
-          when "RDFa" then generator.outputBuffer.append("<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML+RDFa 1.0//EN" "http://www.w3.org/MarkUp/DTD/xhtml-rdfa-1.dtd">")
-      else
-        generator.outputBuffer.append("<!DOCTYPE html>")
-      generator.outputBuffer.append(@_newline(tokeniser))
-      tokeniser.getNextToken()
 
   _filter: (tokeniser, indent, generator, options) ->
     if tokeniser.token.filter
