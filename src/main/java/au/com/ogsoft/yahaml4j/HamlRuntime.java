@@ -61,26 +61,26 @@ public class HamlRuntime {
             }
         }
 
-        /*if objRefFn?
-          try
-            object = objRefFn.call(context, context)
-            if object?
-              objectId = null
-              if object.id?
-                objectId = object.id
-              else if object.get
-                objectId = object.get('id')
-              attributes = @combineAttributes(attributes, 'id', objectId)
-              className = null
-              if object['class']
-                className = object['class']
-              else if object.get
-                className = object.get('class')
-              attributes = @combineAttributes(attributes, 'class', className)
-          catch e
-            handleError haml.HamlRuntime.templateError(lineNumber, characterNumber, currentLine, "Error evaluating object reference - #{e}")
+//        if (objRefFn != null) {
+//          try {
+//            object = objRefFn.call(context, context)
+//            if object?
+//              objectId = null
+//              if object.id?
+//                objectId = object.id
+//              else if object.get
+//                objectId = object.get('id')
+//              attributes = @combineAttributes(attributes, 'id', objectId)
+//              className = null
+//              if object['class']
+//                className = object['class']
+//              else if object.get
+//                className = object.get('class')
+//              attributes = @combineAttributes(attributes, 'class', className)
+//          catch e
+//            handleError haml.HamlRuntime.templateError(lineNumber, characterNumber, currentLine, "Error evaluating object reference - #{e}")
 
-        if attrFunction?
+        /*if attrFunction?
           try
             hash = attrFunction.call(context, context)
             if hash?

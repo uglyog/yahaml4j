@@ -540,6 +540,46 @@ public class HamlTest {
         )
     }
 
+    @Test
+    public void "template with object reference"() {
+        def haml = haml.compileHaml("object-reference",
+            "%h1\n" +
+            "  %div[test]\n" +
+            "    %p[test2] This is some text\n" +
+            "      This is some text\n" +
+            "    This is some div text\n" +
+            "    .class1[test3]{id: 1, class: \"class3\", for: \"something\"}", null)
+        String result = runScript(haml, "{\n" +
+            "        test: {\n" +
+            "          id: 'test'\n" +
+            "        },\n" +
+            "        test2: {\n" +
+            "          id: 'test2',\n" +
+            "          'class': 'blah'\n" +
+            "        },\n" +
+            "        test3: {\n" +
+            "          attributes: {\n" +
+            "            id: 'test',\n" +
+            "            'class': 'class2'\n" +
+            "          },\n" +
+            "          get: function (name) { return this.attributes[name]; }\n" +
+            "        }\n" +
+            "      }")
+        assertThat result, is(
+            "<h1>\n" +
+            "  <div id=\"test\">\n" +
+            "    <p id=\"test2\" class=\"blah\">\n" +
+            "      This is some text\n" +
+            "      This is some text\n" +
+            "    </p>\n" +
+            "    This is some div text\n" +
+            "    <div id=\"test-1\" for=\"something\" class=\"class1 class2 class3\">\n" +
+            "    </div>\n" +
+            "  </div>\n" +
+            "</h1>\n"
+        )
+    }
+
     private Object runScript(String haml, String context = "{}") {
         ScriptEngineManager factory = new ScriptEngineManager()
         ScriptEngine engine = factory.getEngineByName("JavaScript")
@@ -551,48 +591,6 @@ public class HamlTest {
     }
 
     /*
-
-  describe 'template with object reference', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="object-reference">\n' +
-        '%h1\n' +
-        '  %div[test]\n' +
-        '    %p[test2] This is some text\n' +
-        '      This is some text\n' +
-        '    This is some div text\n' +
-        '    .class1[test3]{id: 1, class: "class3", for: "something"}\n' +
-        '</script>')
-
-    it 'should render the correct html', () ->
-      html = haml.compileHaml('object-reference')({
-        test: {
-          id: 'test'
-        },
-        test2: {
-          id: 'test2',
-          'class': 'blah'
-        },
-        test3: {
-          attributes: {
-            id: 'test',
-            'class': 'class2'
-          },
-          get: (name) -> @attributes[name]
-        }
-      })
-      expect(html).toEqual(
-        '\n<h1>\n' +
-        '  <div id="test">\n' +
-        '    <p id="test2" class="blah">\n' +
-        '      This is some text\n' +
-        '      This is some text\n' +
-        '    </p>\n' +
-        '    This is some div text\n' +
-        '    <div class="class1 class2 class3" id="test-1" for="something">\n' +
-        '    </div>\n' +
-        '  </div>\n' +
-        '</h1>\n')
 
   describe 'coffescript template with object reference', () ->
 

@@ -266,7 +266,7 @@ class Haml {
         String identifier = _element(tokeniser);
         String id = _idSelector(tokeniser);
         List<String> classes = _classSelector(tokeniser);
-        String objectRef = null; // @_objectReference(tokeniser)
+        String objectRef = _objectReference(tokeniser);
         Map<String, String> attrList = _attributeList(tokeniser, options);
 
         ParsePoint currentParsePoint = tokeniser.currentParsePoint();
@@ -342,6 +342,15 @@ class Haml {
                 currentParsePoint.lineNumber, currentParsePoint.characterNumber,
                 currentParsePoint.currentLine, "A self-closing tag can not have any contents")));
         }
+    }
+
+    private String _objectReference(Tokeniser tokeniser) {
+        String attr = "";
+        if (tokeniser.getToken().type == Token.TokenType.OBJECTREF) {
+            attr = tokeniser.getToken().getTokenString();
+            tokeniser.getNextToken();
+        }
+        return attr;
     }
 
     // ATTRIBUTES -> ( ATTRIBUTE* )
@@ -653,13 +662,6 @@ class Haml {
         i = haml._whitespace(tokeniser)
       haml.filters[filter](filterBlock, generator, indent, tokeniser.currentParsePoint())
       tokeniser.pushBackToken()
-
-  _objectReference: (tokeniser) ->
-    attr = ""
-    if tokeniser.token.objectReference
-      attr = tokeniser.token.tokenString
-      tokeniser.getNextToken()
-    attr
 
      */
 

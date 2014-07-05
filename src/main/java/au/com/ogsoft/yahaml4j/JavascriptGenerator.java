@@ -112,11 +112,12 @@ public class JavascriptGenerator extends BaseCodeGenerator {
         } else {
             outputBuffer.appendToOutputBuffer("    hashFunction = null;\n");
         }
-//        if objectRef.length > 0
-//          @outputBuffer.appendToOutputBuffer('    objRefFn = function () { return eval("objRef = ' +
-//            objectRef.replace(/"/g, '\\"') + '"); };\n')
-//        else
-//          @outputBuffer.appendToOutputBuffer('    objRefFn = null;\n');
+        if (StringUtils.isNotEmpty(objectRef)) {
+            outputBuffer.appendToOutputBuffer("    objRefFn = function () { return eval(\"objRef = " +
+                objectRef.replaceAll("\"", "\\\"") + "\"); };\n");
+        } else {
+            outputBuffer.appendToOutputBuffer("    objRefFn = null;\n");
+        }
 
         JSONWriter json = new JSONStringer().object();
         for(Map.Entry<String, String> attr: attributeList.entrySet()) {
