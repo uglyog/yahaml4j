@@ -468,8 +468,8 @@ class Haml {
         return hash;
     }
 
+    // HASH_ENTRY -> IDENTIFIER WS* ":" WS* !("," "}")
     private void _hashEntry(Map<String, String> hash, Tokeniser tokeniser, HamlOptions options) {
-        // HASH_ENTRY -> IDENTIFIER WS* ":" WS* !("," "}")
         if (tokeniser.getToken().type != Token.TokenType.CODE_ID) {
             _handleError(options, null, tokeniser,
                 new RuntimeException(tokeniser.parseError("Hash keys must be normal identifiers")));

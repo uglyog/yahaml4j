@@ -5,6 +5,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONStringer;
 import org.json.JSONWriter;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -61,7 +62,7 @@ public class JavascriptGenerator extends BaseCodeGenerator {
     @Override
     public String closeAndReturnOutput() {
         getOutputBuffer().flush();
-        return getOutputBuffer().output() + "  };\n  return html.join(\"\");\n}\n";
+        return getOutputBuffer().output() + "  }\n  return html.join(\"\");\n}\n";
     }
 
     @Override
@@ -105,10 +106,12 @@ public class JavascriptGenerator extends BaseCodeGenerator {
                 if (!hashStr.isEmpty()) {
                     hashStr += ", ";
                 }
-                hashStr += "\\\"" + key + "\\\": " + entry.getValue().replaceAll("[\"]", "\\\\\"").replaceAll("\n", "\\n");
+                String value = entry.getValue().replaceAll("[\"]", "\\\\\"").replaceAll("\n", "\\\\n");
+                value = replaceReservedWordsInHash(value);
+                hashStr += "\\\"" + key + "\\\": " + value;
             }
             outputBuffer.appendToOutputBuffer("    hashFunction = function () { return eval(\"hashObject = {" +
-                hashStr + " }\"); }\n");
+                hashStr + " }\"); };\n");
         } else {
             outputBuffer.appendToOutputBuffer("    hashFunction = null;\n");
         }
@@ -150,10 +153,10 @@ public class JavascriptGenerator extends BaseCodeGenerator {
         StringBuilder result = new StringBuilder();
         SourceBuffer buffer = tokeniser.getBuffer();
         boolean done = false;
-        int bcount = 0;
+        int bcount = 0, hcount = 0;
         while (!buffer.empty() && !done) {
             char ch = buffer.peek();
-            if ((ch == ',' || ch == '}') && bcount == 0) {
+            if ((ch == ',' || ch == '}') && bcount == 0 && hcount == 0) {
                 done = true;
             } else {
                 if (ch == '[') {
@@ -163,6 +166,10 @@ public class JavascriptGenerator extends BaseCodeGenerator {
                     if (bcount < 0) {
                         bcount = 0;
                     }
+                } else if (ch == '{') {
+                    hcount++;
+                } else if (ch == '}') {
+                    hcount--;
                 }
                 result.append(buffer.get());
             }
@@ -249,16 +256,18 @@ public class JavascriptGenerator extends BaseCodeGenerator {
         return StringEscapeUtils.escapeEcmaScript(jsString);
     }
 
-    /*
-
-  ###
+    /**
     Clean any reserved words in the given hash
-  ###
-  replaceReservedWordsInHash: (hash) ->
-    resultHash = hash
-    for reservedWord in ['class', 'for']
-      resultHash = resultHash.replace(reservedWord + ':', '"' + reservedWord + '":')
-    resultHash
+    */
+    private String replaceReservedWordsInHash(String hash) {
+        String resultHash = hash;
+        for(String reservedWord: Arrays.asList("class", "for")) {
+            resultHash = resultHash.replaceAll(reservedWord + ':', "\\\\\"" + reservedWord + "\\\\\":");
+        }
+        return resultHash;
+    }
+
+    /*
 
   ###
     Generate a function from the function body

@@ -580,6 +580,25 @@ public class HamlTest {
         )
     }
 
+    @Test
+    public void "html 5 data attributes"() {
+        def haml = haml.compileHaml("html5-attributes",
+            "%h1\n" +
+            "  %div{id: \"test\"}\n" +
+            "    %p{id: 'test2', data: {\n" +
+            "        class: \"blah\", name: null, test: false, checked: false, selected: true}} This is some text", null)
+        String result = runScript(haml)
+        assertThat result, is(
+            "<h1>\n" +
+            "  <div id=\"test\">\n" +
+            "    <p id=\"test2\" data-class=\"blah\" data-selected=\"true\">\n" +
+            "      This is some text\n" +
+            "    </p>\n" +
+            "  </div>\n" +
+            "</h1>\n"
+        )
+    }
+
     private Object runScript(String haml, String context = "{}") {
         ScriptEngineManager factory = new ScriptEngineManager()
         ScriptEngine engine = factory.getEngineByName("JavaScript")
@@ -591,69 +610,6 @@ public class HamlTest {
     }
 
     /*
-
-  describe 'coffescript template with object reference', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="object-reference">\n' +
-        '%h1\n' +
-        '  %div[@test]\n' +
-        '    %p[@test2] This is some text\n' +
-        '      This is some text\n' +
-        '    This is some div text\n' +
-        '    .class1[@test3]{id: 1, class: "class3", for: "something"}\n' +
-        '</script>')
-
-    it 'should render the correct html', () ->
-      html = haml.compileCoffeeHaml('object-reference').call({
-        test: {
-          id: 'test'
-        },
-        test2: {
-          id: 'test2',
-          'class': 'blah'
-        },
-        test3: {
-          attributes: {
-            id: 'test',
-            'class': 'class2'
-          },
-          get: (name) -> @attributes[name]
-        }
-      })
-      expect(html).toEqual(
-        '\n<h1>\n' +
-        '  <div id="test">\n' +
-        '    <p id="test2" class="blah">\n' +
-        '      This is some text\n' +
-        '      This is some text\n' +
-        '    </p>\n' +
-        '    This is some div text\n' +
-        '    <div class="class1 class2 class3" id="test-1" for="something">\n' +
-        '    </div>\n' +
-        '  </div>\n' +
-        '</h1>\n')
-
-  describe 'html 5 data attributes', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="html5-attributes">\n' +
-        '%h1\n' +
-        '  %div{id: "test"}\n' +
-        '    %p{id: \'test2\', data: {\n' +
-        '        class: "blah", name: null, test: false, checked: false, selected: true}} This is some text\n' +
-        '</script>')
-
-    it 'should render the correct html', () ->
-      html = haml.compileHaml('html5-attributes')()
-      expect(html).toEqual(
-        '\n<h1>\n' +
-        '  <div id="test">\n' +
-        '    <p id="test2" data-class="blah" data-selected="true">\n' +
-        '      This is some text\n' +
-        '    </p>\n' +
-        '  </div>\n' +
-        '</h1>\n')
 
   describe 'whitespace preservation', () ->
 
