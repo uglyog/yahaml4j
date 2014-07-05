@@ -42,7 +42,7 @@ public class JavascriptGenerator extends BaseCodeGenerator {
     }
 
     private String safeName(String scriptName) {
-        return StringUtils.replaceChars(scriptName, ' ', '_');
+        return StringUtils.replaceChars(scriptName, " -", "_");
     }
 
     /**
@@ -233,7 +233,7 @@ public class JavascriptGenerator extends BaseCodeGenerator {
      */
     private String processText(String text, ProcessOptions options) {
         if (options != null && options.escapeHTML) {
-            return null; // HamlRuntime.escapeHTML(text);
+            return HamlRuntime.escapeHTML(text);
         } else if (options != null && options.perserveWhitespace) {
             return null; // HamlRuntime.perserveWhitespace(text);
         } else {

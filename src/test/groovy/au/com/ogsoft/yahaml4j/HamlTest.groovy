@@ -381,6 +381,137 @@ public class HamlTest {
         )
     }
 
+    @Test
+    public void "template with code lines using locally defined variables"() {
+        def haml = haml.compileHaml("evaluation",
+            ".main\n" +
+            "  - var foo = \"hello\";\n" +
+            "  - foo += \" world\";\n" +
+            "  %span\n" +
+            "    = foo", null)
+        String result = runScript(haml)
+        assertThat result, is(
+            "<div class=\"main\">\n" +
+            "  <span>\n" +
+            "    hello world\n" +
+            "  </span>\n" +
+            "</div>\n"
+        )
+    }
+
+    @Test
+    public void "template with code lines with loops"() {
+        def haml = haml.compileHaml("evaluation-with-loops",
+            ".main\n" +
+            "  - _([\"Option 1\", \"Option 2\", \"Option 3\"]).each(function (option) {\n" +
+            "    %span= option\n" +
+            "  - });\n" +
+            "  - for (var i = 0; i < 5; i++) {\n" +
+            "    %p= i\n" +
+            "  - }", null)
+        String result = runScript(haml)
+        assertThat result, is(
+            "<div class=\"main\">\n" +
+            "    <span>\n" +
+            "      Option 1\n" +
+            "    </span>\n" +
+            "    <span>\n" +
+            "      Option 2\n" +
+            "    </span>\n" +
+            "    <span>\n" +
+            "      Option 3\n" +
+            "    </span>\n" +
+            "    <p>\n" +
+            "      0\n" +
+            "    </p>\n" +
+            "    <p>\n" +
+            "      1\n" +
+            "    </p>\n" +
+            "    <p>\n" +
+            "      2\n" +
+            "    </p>\n" +
+            "    <p>\n" +
+            "      3\n" +
+            "    </p>\n" +
+            "    <p>\n" +
+            "      4\n" +
+            "    </p>\n" +
+            "</div>\n"
+        )
+    }
+
+    @Test
+    public void "template provides access to the context within inline code"() {
+        def haml = haml.compileHaml("evaluation-using-context",
+            ".main\n" +
+            "  - var foo = model.foo;\n" +
+            "  - foo += \" world\";\n" +
+            "  %span\n" +
+            "    = foo", null)
+        String result = runScript(haml, "{ model: { foo: \"hello\" } }")
+        assertThat result, is(
+            "<div class=\"main\">\n" +
+            "  <span>\n" +
+            "    hello world\n" +
+            "  </span>\n" +
+            "</div>\n"
+        )
+    }
+
+    @Test
+    public void "template is able to access variables declared as part of the haml"() {
+        def haml = haml.compileHaml("attribute-hash-evaluation-using-outer-scope",
+            ".main\n" +
+            "  - var foo = \"hello world\";\n" +
+            "  %span{someattribute: foo}", null)
+        String result = runScript(haml)
+        assertThat result, is(
+            "<div class=\"main\">\n" +
+            "  <span someattribute=\"hello world\">\n" +
+            "  </span>\n" +
+            "</div>\n"
+        )
+    }
+
+    @Test
+    public void "template with code lines and no closing blocks"() {
+        def haml = haml.compileHaml("no closing blocks",
+            ".main\n" +
+            "  - _([\"Option 1\", \"Option 2\", \"Option 3\"]).each(function (option) {\n" +
+            "    %span= option\n" +
+            "  - for (var i = 0; i < 5; i++) {\n" +
+            "    %p= i", null)
+        String result = runScript(haml)
+        assertThat result, is(
+            "<div class=\"main\">\n" +
+            "    <span>\n" +
+            "      Option 1\n" +
+            "    </span>\n" +
+            "    <span>\n" +
+            "      Option 2\n" +
+            "    </span>\n" +
+            "    <span>\n" +
+            "      Option 3\n" +
+            "    </span>\n" +
+            "    <p>\n" +
+            "      0\n" +
+            "    </p>\n" +
+            "    <p>\n" +
+            "      1\n" +
+            "    </p>\n" +
+            "    <p>\n" +
+            "      2\n" +
+            "    </p>\n" +
+            "    <p>\n" +
+            "      3\n" +
+            "    </p>\n" +
+            "    <p>\n" +
+            "      4\n" +
+            "    </p>\n" +
+            "</div>\n"
+        )
+    }
+
     private Object runScript(String haml, String context = "{}") {
         ScriptEngineManager factory = new ScriptEngineManager()
         ScriptEngine engine = factory.getEngineByName("JavaScript")
@@ -392,142 +523,6 @@ public class HamlTest {
     }
 
     /*
-
-  describe 'template with Javascript code lines', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="evaluation">\n' +
-        '.main\n' +
-        '  - var foo = "hello";\n' +
-        '  - foo += " world";\n' +
-        '  %span\n' +
-        '    = foo\n' +
-        '</script>\n' +
-        '<script type="text/template" id="evaluation-with-loops">\n' +
-        '.main\n' +
-        '  - _(["Option 1", "Option 2", "Option 3"]).each(function (option) {\n' +
-        '    %span= option\n' +
-        '  - });\n' +
-        '  - for (var i = 0; i < 5; i++) {\n' +
-        '    %p= i\n' +
-        '  - }\n' +
-        '</script>' +
-        '<script type="text/template" id="evaluation-using-context">\n' +
-        '.main\n' +
-        '  - var foo = model.foo;\n' +
-        '  - foo += " world";\n' +
-        '  %span\n' +
-        '    = foo\n' +
-        '</script>' +
-      '<script type="text/template" id="attribute-hash-evaluation-using-outer-scope">\n' +
-        '.main\n' +
-        '  - var foo = "hello world";\n' +
-        '  %span{someattribute: foo}\n' +
-        '</script>')
-
-    for generator in ['javascript', 'productionjavascript']
-      do (generator) ->
-        it 'should render the correct html using locally defined variables for ' + generator, () ->
-          html = haml.compileHaml(sourceId: 'evaluation', generator: generator)()
-          expect(html).toEqual(
-            '\n<div class="main">\n' +
-            '  <span>\n' +
-            '    hello world\n' +
-            '  </span>\n' +
-            '</div>\n')
-
-        it 'should render the correct html when the template has loops for ' + generator, () ->
-          html = haml.compileHaml('evaluation-with-loops', generator: generator)()
-          expect(html).toEqual(
-            '\n<div class="main">\n' +
-            '    <span>\n' +
-            '      Option 1\n' +
-            '    </span>\n' +
-            '    <span>\n' +
-            '      Option 2\n' +
-            '    </span>\n' +
-            '    <span>\n' +
-            '      Option 3\n' +
-            '    </span>\n' +
-            '    <p>\n' +
-            '      0\n' +
-            '    </p>\n' +
-            '    <p>\n' +
-            '      1\n' +
-            '    </p>\n' +
-            '    <p>\n' +
-            '      2\n' +
-            '    </p>\n' +
-            '    <p>\n' +
-            '      3\n' +
-            '    </p>\n' +
-            '    <p>\n' +
-            '      4\n' +
-            '    </p>\n' +
-            '</div>\n')
-
-        it 'should provide access to the context within inline javascript for ' + generator, () ->
-          model = { foo: "hello" }
-          html = haml.compileHaml(sourceId: 'evaluation-using-context', generator: generator).call(null, {model: model})
-          expect(html).toEqual(
-            '\n<div class="main">\n' +
-            '  <span>\n' +
-            '    hello world\n' +
-            '  </span>\n' +
-            '</div>\n')
-
-        it 'should be able to access variables declared as part of the haml for ' + generator, () ->
-          model = { foo: "hello" }
-          html = haml.compileHaml(sourceId: 'attribute-hash-evaluation-using-outer-scope', generator: generator).call(null, {model: model})
-          expect(html).toEqual(
-            '\n<div class="main">\n' +
-            '  <span someattribute="hello world">\n' +
-            '  </span>\n' +
-            '</div>\n')
-
-  describe 'template with Javascript code lines and no closing blocks', () ->
-
-    beforeEach () ->
-      setFixtures(
-        '<script type="text/template" id="evaluation-with-loops">\n' +
-        '.main\n' +
-        '  - _(["Option 1", "Option 2", "Option 3"]).each(function (option) {\n' +
-        '    %span= option\n' +
-        '  - for (var i = 0; i < 5; i++) {\n' +
-        '    %p= i\n' +
-        '</script>')
-
-    for generator in ['javascript', 'productionjavascript']
-      do (generator) ->
-        it 'should render the correct html when the template has loops for ' + generator, () ->
-          html = haml.compileHaml(sourceId: 'evaluation-with-loops', generator: generator)()
-          expect(html).toEqual(
-            '\n<div class="main">\n' +
-            '    <span>\n' +
-            '      Option 1\n' +
-            '    </span>\n' +
-            '    <span>\n' +
-            '      Option 2\n' +
-            '    </span>\n' +
-            '    <span>\n' +
-            '      Option 3\n' +
-            '    </span>\n' +
-            '    <p>\n' +
-            '      0\n' +
-            '    </p>\n' +
-            '    <p>\n' +
-            '      1\n' +
-            '    </p>\n' +
-            '    <p>\n' +
-            '      2\n' +
-            '    </p>\n' +
-            '    <p>\n' +
-            '      3\n' +
-            '    </p>\n' +
-            '    <p>\n' +
-            '      4\n' +
-            '    </p>\n' +
-            '</div>\n')
 
   describe 'Whitespace Removal: > and <', () ->
 
