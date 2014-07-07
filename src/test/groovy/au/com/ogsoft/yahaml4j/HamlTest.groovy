@@ -636,6 +636,30 @@ public class HamlTest {
         )
     }
 
+    @Test
+    public void "Multiline code blocks"() {
+        def haml = haml.compileHaml("multiline",
+            "%whoo\n" +
+            "  %hoo=                              |\n" +
+            "    \"I think this might get \" +    |\n" +
+            "    \"pretty long so I should \" +   |\n" +
+            "    \"probably make it \" +          |\n" +
+            "    \"multiline so it doesn\\'t \" + |\n" +
+            "    \"look awful.\"                  |\n" +
+            "  %p This is short.", null)
+        String result = runScript(haml)
+        assertThat result, is(
+            "<whoo>\n" +
+            "  <hoo>\n" +
+            "    I think this might get pretty long so I should probably make it multiline so it doesn&#39;t look awful.\n" +
+            "  </hoo>\n" +
+            "  <p>\n" +
+            "    This is short.\n" +
+            "  </p>\n" +
+            "</whoo>\n"
+        )
+    }
+
     private Object runScript(String haml, String context = "{}") {
         ScriptEngineManager factory = new ScriptEngineManager()
         ScriptEngine engine = factory.getEngineByName("JavaScript")
@@ -645,49 +669,5 @@ public class HamlTest {
         def result = engine.eval("var fn = " + haml + "; fn(" + context + ");")
         result
     }
-
-    /*
-
-  describe 'Multiline code blocks', () ->
-
-    beforeEach () ->
-      setFixtures('<script type="text/template" id="multiline">\n' +
-        '%whoo\n' +
-        '  %hoo=                           |\n' +
-        '    "I think this might get " +   |\n' +
-        '    "pretty long so I should " +  |\n' +
-        '    "probably make it " +         |\n' +
-        '    "multiline so it doesn\'t " + |\n' +
-        '    "look awful."                 |\n' +
-        '  %p This is short.\n' +
-        '</script>')
-
-    for generator in ['javascript', 'productionjavascript']
-      it 'should render the correct html for ' + generator, () ->
-        html = haml.compileHaml('multiline', generator: generator)()
-        expect(html).toEqual(
-          '\n<whoo>\n' +
-          '  <hoo>\n' +
-          '    I think this might get pretty long so I should probably make it multiline so it doesn&#39;t look awful.\n' +
-          '  </hoo>\n' +
-          '  <p>\n' +
-          '    This is short.\n' +
-          '  </p>\n' +
-          '</whoo>\n')
-
-    it 'with coffescript should render the correct html', () ->
-      html = haml.compileCoffeeHaml('multiline')()
-      expect(html).toEqual(
-        '\n<whoo>\n' +
-        '  <hoo>\n' +
-        '    I think this might get pretty long so I should probably make it multiline so it doesn&#39;t look awful.\n' +
-        '  </hoo>\n' +
-        '  <p>\n' +
-        '    This is short.\n' +
-        '  </p>\n' +
-        '</whoo>\n')
-
-
-     */
 
 }

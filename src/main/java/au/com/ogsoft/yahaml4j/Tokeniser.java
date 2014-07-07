@@ -2,6 +2,7 @@ package au.com.ogsoft.yahaml4j;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -349,7 +350,7 @@ public class Tokeniser {
                     text += contents.substring(0, contents.length() - 1);
                     advanceCharsInBuffer(contents.length() - 1);
                     getNextToken();
-//                    text += parseMultiLine();
+                    text += parseMultiLine();
                 } else {
                     text += line;
                     advanceCharsInBuffer(line.length());
@@ -358,6 +359,25 @@ public class Tokeniser {
             }
         }
         return text;
+    }
+
+    /**
+     * Parses a multiline code block and returns the parsed text
+     */
+    private String parseMultiLine() {
+        StringBuilder text = new StringBuilder();
+        while (token.type == Token.TokenType.CONTINUELINE) {
+            String line = buffer.matchRegex(CURRENT_LINE_MATCHER);
+            if (StringUtils.isNotEmpty(line)) {
+                String contents = StringUtils.stripEnd(line, null);
+                if (contents.endsWith("|")) {
+                  text.append(contents.substring(0, contents.length() - 1));
+                  advanceCharsInBuffer(contents.length() - 1);
+                }
+                getNextToken();
+            }
+        }
+        return text.toString();
     }
 
     /**
@@ -398,22 +418,6 @@ public class Tokeniser {
     }
 
     /*
-
-    ###
-    Parses a multiline code block and returns the parsed text
-    ###
-    parseMultiLine: ->
-    text = ''
-            while @token.continueLine
-    @currentLineMatcher.lastIndex = @bufferIndex
-    line = @currentLineMatcher.exec(@buffer)
-    if line and line.index == @bufferIndex
-    contents = (_.str || _).rtrim(line[0])
-    if (_.str || _).endsWith(contents, '|')
-    text += contents.substring(0, contents.length - 1)
-    @advanceCharsInBuffer(contents.length - 1)
-    @getNextToken()
-    text
 
     ###
     Calculate the indent value of the current line
