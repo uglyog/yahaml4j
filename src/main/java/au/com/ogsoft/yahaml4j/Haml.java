@@ -410,6 +410,13 @@ class Haml {
                         _handleError(options, null, tokeniser, new RuntimeException(
                                 tokeniser.parseError("Expecting either an attribute name to continue the attributes or a closing " +
                                         "bracket to end")));
+                        while (tokeniser.getToken().type != Token.TokenType.CLOSEBRACKET && tokeniser.getToken().type != Token.TokenType.EOF
+                                && tokeniser.getToken().type != Token.TokenType.EOL) {
+                            tokeniser.getNextToken();
+                        }
+                        if (tokeniser.getToken().type == Token.TokenType.CLOSEBRACKET) {
+                            tokeniser.getNextToken();
+                        }
                         return attrList;
                     }
                 }
@@ -490,7 +497,7 @@ class Haml {
             tokeniser.setMode(Tokeniser.Mode.ATTRHASH);
             tokeniser.getNextToken();
             _whitespace(tokeniser);
-            _hashEntry(hash, tokeniser, null);
+            _hashEntry(hash, tokeniser, options);
             while (tokeniser.getToken().type == Token.TokenType.COMMA) {
                 tokeniser.getNextToken();
                 _whitespace(tokeniser);
@@ -518,6 +525,11 @@ class Haml {
             if (tokeniser.getToken().type != Token.TokenType.COLON) {
                 _handleError(options, null, tokeniser,
                     new RuntimeException(tokeniser.parseError("Expected a colon (:) after a Hash key")));
+                if (options.tolerateFaults) {
+                    while (tokeniser.getToken().type != Token.TokenType.CLOSEBRACE && tokeniser.getToken().type != Token.TokenType.EOF) {
+                        tokeniser.getNextToken();
+                    }
+                }
             } else {
                 String value = generator.scanEmbeddedCode(tokeniser);
                 if (value == null) {
