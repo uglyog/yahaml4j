@@ -1,5 +1,6 @@
 package au.com.ogsoft.yahaml4j;
 
+import au.com.ogsoft.yahaml4j.filters.*;
 import org.apache.commons.collections4.keyvalue.DefaultMapEntry;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -23,9 +24,23 @@ class Haml {
 
     private HamlGenerator generator;
     private Tokeniser tokeniser;
+    private Map<String, Filter> filters = new HashMap<String, Filter>();
 
     public Haml() {
 
+    }
+
+    public void setupStandardFilters() {
+        filters.put("plain", new PlainFilter());
+        filters.put("javascript", new JavascriptFilter());
+        filters.put("css", new CssFilter());
+        filters.put("cdata", new CDataFilter());
+        filters.put("preserve", new PreserveFilter());
+        filters.put("escaped", new EscapedFilter());
+    }
+
+    Map<String, Filter> getFilters() {
+        return filters;
     }
 
     /**
@@ -94,8 +109,8 @@ class Haml {
                         _commentLine(tokeniser, indent, generator.getElementStack(), generator);
                     } else if (tokeniser.getToken().type == Token.TokenType.AMP) {
                         _escapedLine(tokeniser, indent, generator.getElementStack(), generator);
-          /*else if tokeniser.token.filter
-            @_filter(tokeniser, indent, generator, options) */
+                    } else if (tokeniser.getToken().type == Token.TokenType.FILTER) {
+                        _filter(tokeniser, indent, generator, options);
                     } else {
                         _templateLine(tokeniser, generator.getElementStack(), indent, generator, options);
                     }
@@ -114,6 +129,33 @@ class Haml {
         _closeElements(0, generator.getElementStack(), tokeniser, generator);
 
         return generator.closeAndReturnOutput();
+    }
+
+    private void _filter(Tokeniser tokeniser, Integer indent, HamlGenerator generator, HamlOptions options) {
+        if (tokeniser.getToken().type == Token.TokenType.FILTER) {
+            String filter = tokeniser.getToken().getTokenString();
+            if (!filters.containsKey(filter)) {
+                ErrorOptions errorOptions = new ErrorOptions();
+                errorOptions.skipTo = indent;
+                _handleError(options, errorOptions, tokeniser, new RuntimeException(tokeniser.parseError(
+                        "Filter \"" + filter + "\" not registered. Filter functions need to be added to the \"filters\" map.")));
+                return;
+            }
+
+            tokeniser.skipToEOLorEOF();
+            tokeniser.getNextToken();
+            int i = _whitespace(tokeniser);
+            List<String> filterBlock = new ArrayList<String>();
+            while (tokeniser.getToken().type != Token.TokenType.EOF && i > indent) {
+                tokeniser.pushBackToken();
+                String line = tokeniser.skipToEOLorEOF();
+                filterBlock.add(line.substring(2 * indent));
+                tokeniser.getNextToken();
+                i = _whitespace(tokeniser);
+            }
+            filters.get(filter).execute(filterBlock, generator, indent, tokeniser.currentParsePoint());
+            tokeniser.pushBackToken();
+        }
     }
 
     private void _doctype(Tokeniser tokeniser, Integer indent, HamlGenerator generator) {
@@ -664,29 +706,5 @@ class Haml {
         }
         return indent;
     }
-
-    /*
-
-  _filter: (tokeniser, indent, generator, options) ->
-    if tokeniser.token.filter
-      filter = tokeniser.token.tokenString
-      unless haml.filters[filter]
-        @_handleError(options, skipTo: indent, tokeniser, tokeniser.parseError("Filter "#{filter}" not registered. Filter functions need to be added to "haml.filters"."))
-        return
-
-      tokeniser.skipToEOLorEOF()
-      tokeniser.getNextToken()
-      i = haml._whitespace(tokeniser)
-      filterBlock = []
-      while (!tokeniser.token.eof and i > indent)
-        tokeniser.pushBackToken()
-        line = tokeniser.skipToEOLorEOF()
-        filterBlock.push(HamlRuntime.trim(line, 2 * indent))
-        tokeniser.getNextToken()
-        i = haml._whitespace(tokeniser)
-      haml.filters[filter](filterBlock, generator, indent, tokeniser.currentParsePoint())
-      tokeniser.pushBackToken()
-
-     */
 
 }

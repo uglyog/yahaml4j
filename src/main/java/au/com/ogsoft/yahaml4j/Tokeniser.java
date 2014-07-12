@@ -164,6 +164,12 @@ public class Tokeniser {
                     }
                 });
                 matchMultiCharToken(DOCTYPE, Token.TokenType.DOCTYPE, null);
+                matchMultiCharToken(FILTER, Token.TokenType.FILTER, new MatchedFn() {
+                    @Override
+                    public String match(String value) {
+                        return value.substring(1);
+                    }
+                });
             }
 
             if (this.mode == Mode.ATTRHASH) {
@@ -185,10 +191,6 @@ public class Tokeniser {
                     }
                 }
             }
-
-                /*
-              @matchMultiCharToken(@tokenMatchers.filter, { filter: true, token: 'FILTER' }, (matched) -> matched.substring(1) )
-              */
 
             matchSingleCharToken('{', Token.TokenType.OPENBRACE);
             matchSingleCharToken('}', Token.TokenType.CLOSEBRACE);
@@ -355,6 +357,8 @@ public class Tokeniser {
                     advanceCharsInBuffer(line.length());
                     getNextToken();
                 }
+            } else {
+                getNextToken();
             }
         }
         return text;

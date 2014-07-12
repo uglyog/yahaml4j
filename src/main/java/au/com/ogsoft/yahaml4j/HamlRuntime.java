@@ -223,13 +223,6 @@ public class HamlRuntime {
 
   _raiseError: (message) -> throw new Error(message)
 
-  ###
-    trims the first number of characters from a string
-  ###
-  trim: (str, chars) -> str.substring(chars)
-
-
-
      */
 
     static boolean hasValue(Object value) {
